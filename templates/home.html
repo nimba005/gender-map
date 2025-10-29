@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Home • Gender Hotspot Maps{% endblock %}
+
+{% block content %}
+<section class="hero">
+  <div class="hero__content">
+    <p class="eyebrow">Welcome</p>
+    <h1 class="hero__title">Gender Hotspot Maps</h1>
+    <p class="hero__subtitle">
+      Simple decision-support starter app. View a demo Africa map with mock “hotspots.”
+      You can replace the demo data with real sex-disaggregated indicators later.
+    </p>
+    <a class="btn" href="{{ url_for('map_page') }}">Go to Map</a>
+  </div>
+</section>
+
+<section class="section">
+  <h2>What this starter includes</h2>
+  <ul class="bullet-list">
+    <li>Clean two-item navbar: <strong>Home</strong> and <strong>Map</strong></li>
+    <li>Leaflet basemap of Africa</li>
+    <li>Demo GeoJSON hotspot layer</li>
+    <li>Structure ready for API/data growth</li>
+  </ul>
+</section>
+{% endblock %}

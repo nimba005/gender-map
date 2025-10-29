@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Map • Gender Hotspot Maps{% endblock %}
+
+{% block head_extra %}
+  <!-- Leaflet CSS -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+{% endblock %}
+
+{% block content %}
+<section class="section">
+  <h1>Map</h1>
+  <p class="muted">Zoom, pan, and click hotspots to view attributes.</p>
+  <div id="map" class="map"></div>
+</section>
+{% endblock %}
+
+{% block body_scripts %}
+  <!-- Leaflet JS -->
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <!-- Your map logic -->
+  <script src="{{ url_for('static', filename='js/map.js') }}"></script>
+{% endblock %}

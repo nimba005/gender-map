@@ -1,0 +1,58 @@
+# --- Core Web Framework ---
+Flask==3.0.0
+Werkzeug==3.0.3
+Jinja2==3.1.4
+itsdangerous==2.2.0
+click==8.1.7
+
+# --- Map & Geospatial Support (for future improvements) ---
+geojson==3.1.0
+geopandas==1.0.1
+shapely==2.0.6
+folium==0.17.0          # If you want to generate Leaflet maps directly in Python
+branca==0.7.1
+
+# --- Data Handling & APIs ---
+pandas==2.2.3
+numpy==2.1.2
+requests==2.32.3
+python-dotenv==1.0.1    # For managing environment variables
+gunicorn==23.0.0        # For production deployment (Render, Railway, Heroku)
+
+# --- Optional Enhancements ---
+flask-cors==4.0.1       # For connecting frontend (JS/React, etc.) to backend
+flask-restful==0.3.10   # To build APIs later (e.g., /api/hotspots)
+flask-login==0.6.3      # For user authentication
+flask-sqlalchemy==3.1.1 # For storing user/map data
+SQLAlchemy==2.0.25
+psycopg2-binary==2.9.9  # For PostgreSQL (if you store data later)
+openpyxl==3.1.5         # For Excel uploads
+xlrd==2.0.1             # For older Excel reading
+
+# --- Visualization / Analytics (future upgrades) ---
+matplotlib==3.9.2
+plotly==5.24.1
+seaborn==0.13.2
+
+# --- Code Quality & Development Tools ---
+black==24.10.0
+flake8==7.1.1
+pytest==8.3.3
+python-dateutil==2.9.0.post0
+
+# --- Security / Utilities ---
+cryptography==43.0.3
+pyjwt==2.10.1
+email-validator==2.2.0
+
+# --- Optional Machine Learning (for data analysis later) ---
+scikit-learn==1.5.2
+
+# --- Deployment and Static Files (future) ---
+whitenoise==6.7.0
+
+# --- Environment ---
+# You can create a virtual environment using:
+# python -m venv .venv
+# source .venv/bin/activate (Mac/Linux)
+# .venv\Scripts\activate (Windows)
