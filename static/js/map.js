@@ -1,6 +1,5 @@
 // ===============================
 // Gender Hotspot Map (Leaflet)
-// Countries are colored (choropleth) by risk
 // ===============================
 
 // 1) Map + English-label tiles
@@ -14,18 +13,6 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
   maxZoom: 18
 }).addTo(map);
 
-// -------------------------------
-// 0) OPTIONAL: risk lookup if polygons don't have risk_level yet
-//    Keys must match your polygon country name field.
-const RISK_LOOKUP = {
-  "Kenya": "High",
-  "Ghana": "Very High",
-  "Ethiopia": "Medium"
-  // Add more as you populate
-};
-// If your polygons ALREADY have properties.risk_level, this lookup is ignored.
-
-// -------------------------------
 // 2) Color scale by risk level
 function getColor(risk) {
   switch (String(risk || '').trim()) {
@@ -37,14 +24,10 @@ function getColor(risk) {
   }
 }
 
-// -------------------------------
 // 3) Styles
 function stylePolygon(feature) {
   const p = feature.properties || {};
-  const name = p.name || p.ADMIN || p.admin || p.country || '';
-  const risk = p.risk_level || RISK_LOOKUP[name] || 'Unknown';
-
-  // If you still keep intensity (1..5) you can convert it to opacity:
+  // If you still have "intensity" (1..5), convert to opacity; else use risk colors.
   const hasIntensity = Number.isFinite(p.intensity);
   const fillOpacity = hasIntensity
     ? 0.35 + Math.min(0.4, (p.intensity - 1) * 0.12)
@@ -53,50 +36,39 @@ function stylePolygon(feature) {
   return {
     color: '#555',
     weight: 1,
-    fillColor: getColor(risk),
+    fillColor: getColor(p.risk_level),
     fillOpacity
   };
 }
 
-// If you still have point features in your data, we’ll render them as small markers.
-// (Safe to keep; polygons are the main layer and will be clickable.)
 function stylePoint(feature) {
   const p = feature.properties || {};
-  const name = p.country || p.name || '';
-  const risk = p.risk_level || RISK_LOOKUP[name] || 'Unknown';
-
   return {
-    radius: 6,
-    color: '#333',
+    radius: 10,
+    color: '#555',
     weight: 1,
-    fillColor: getColor(risk),
+    fillColor: getColor(p.risk_level),
     fillOpacity: 0.85
   };
 }
 
-// -------------------------------
 // 4) Popup content (robust to different schemas)
-function buildPopupProps(p) {
-  const name = p.country || p.name || p.ADMIN || 'Location';
-  const risk = p.risk_level || RISK_LOOKUP[name] || 'Unknown';
-
+function onEachFeature(feature, layer) {
+  const p = feature.properties || {};
+  // Build popup lines only for properties that exist
   const rows = [
-    `<strong>${name}</strong>`,
+    p.country ? `<strong>${p.country}</strong>` : `<strong>Location</strong>`,
     p.sector ? `Sector: ${p.sector}` : null,
     p.indicator ? `Indicator: ${p.indicator}` : null,
     (p.value !== undefined && p.value !== null) ? `Value: ${p.value}` : null,
-    `Risk Level: <strong>${risk}</strong>`,
+    p.risk_level ? `Risk Level: <strong>${p.risk_level}</strong>` : null,
     (p.intensity !== undefined && p.intensity !== null) ? `Intensity: ${p.intensity}` : null,
     p.description ? `<em>${p.description}</em>` : null
   ].filter(Boolean);
 
-  return rows.join('<br>');
-}
-
-function onEachFeature(feature, layer) {
-  const p = feature.properties || {};
-  const html = buildPopupProps(p);
-  if (html) layer.bindPopup(html);
+  if (rows.length) {
+    layer.bindPopup(rows.join('<br>'));
+  }
 }
 
 // Optional: simple hover highlight for polygons
@@ -105,21 +77,23 @@ function addHoverHighlight(layer) {
     mouseover: (e) => {
       const l = e.target;
       l.setStyle({ weight: 2, color: '#333' });
-      if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) l.bringToFront();
+      if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+        l.bringToFront();
+      }
     },
     mouseout: (e) => {
-      countriesLayer.resetStyle(e.target);
+      geojsonLayer.resetStyle(e.target);
     }
   });
 }
 
-// -------------------------------
 // 5) Legend
 const legend = L.control({ position: 'bottomright' });
 legend.onAdd = function () {
   const div = L.DomUtil.create('div', 'legend');
   const grades = ['Very High', 'High', 'Medium', 'Low', 'Very Low / Unknown'];
   const colors = grades.map(g => getColor(g));
+
   div.innerHTML += '<h4>Risk Level</h4>';
   for (let i = 0; i < grades.length; i++) {
     div.innerHTML += `<i style="background:${colors[i]}"></i> ${grades[i]}<br>`;
@@ -128,15 +102,11 @@ legend.onAdd = function () {
 };
 legend.addTo(map);
 
-// -------------------------------
-// 6) Load data
-// A) Countries polygons (main choropleth)
-// B) (Optional) your point/demo data — drawn on top if present
-const COUNTRIES_POLY = '/data/africa_countries.geojson';
-const OPTIONAL_POINTS = '/data/gender_hotspots.geojson'; // or your demo file
+// 6) Load data (tries main dataset first, then falls back to demo)
+const PRIMARY_DATA = '/data/gender_hotspots.geojson';
+const FALLBACK_DATA = '/data/demo_hotspots.geojson';
 
-let countriesLayer = null;
-let pointsLayer = null;
+let geojsonLayer = null;
 
 function loadGeoJSON(url) {
   return fetch(url).then(res => {
@@ -145,37 +115,39 @@ function loadGeoJSON(url) {
   });
 }
 
-// A) Add polygons and color the entire country
-loadGeoJSON(COUNTRIES_POLY)
-  .then(geojson => {
-    countriesLayer = L.geoJSON(geojson, {
-      style: stylePolygon,
-      onEachFeature: (feat, layer) => {
-        onEachFeature(feat, layer);
-        // Hover highlight only for polygons
-        if (feat.geometry && feat.geometry.type !== 'Point') addHoverHighlight(layer);
-      }
-    }).addTo(map);
+function addDataToMap(geojson) {
+  if (geojsonLayer) {
+    map.removeLayer(geojsonLayer);
+  }
 
-    // Fit to Africa bounds
-    const b = countriesLayer.getBounds();
-    if (b.isValid()) map.fitBounds(b.pad(0.05));
-  })
-  .catch(err => console.error('Failed to load countries polygons:', err));
+  geojsonLayer = L.geoJSON(geojson, {
+    style: (feat) => (feat.geometry.type === 'Point' ? undefined : stylePolygon(feat)),
+    pointToLayer: (feature, latlng) => L.circleMarker(latlng, stylePoint(feature)),
+    onEachFeature: (feat, layer) => {
+      onEachFeature(feat, layer);
+      // Add hover only to polygons
+      if (feat.geometry && feat.geometry.type !== 'Point') addHoverHighlight(layer);
+    }
+  }).addTo(map);
 
-// B) Optional points (kept for now; remove this block if you don’t want points)
-loadGeoJSON(OPTIONAL_POINTS)
-  .then(geojson => {
-    pointsLayer = L.geoJSON(geojson, {
-      style: f => undefined, // not used for points
-      pointToLayer: (feature, latlng) => L.circleMarker(latlng, stylePoint(feature)),
-      onEachFeature
-    }).addTo(map);
-  })
-  .catch(() => {/* ignore if not present */});
+  // Fit map to data bounds if possible
+  try {
+    const b = geojsonLayer.getBounds();
+    if (b.isValid()) map.fitBounds(b.pad(0.1));
+  } catch (e) {
+    // If no bounds (e.g., single point), ignore
+  }
+}
 
-// -------------------------------
-// 7) Minimal legend styles (inject if not in CSS)
+// Try primary, then fallback to demo
+loadGeoJSON(PRIMARY_DATA)
+  .then(addDataToMap)
+  .catch(() => loadGeoJSON(FALLBACK_DATA).then(addDataToMap).catch(err => {
+    console.error('Failed to load any hotspot data:', err);
+  }));
+
+// 7) Minimal legend styles (kept here so you don’t forget the CSS)
+// Move these rules to your main CSS if you prefer.
 (function injectLegendCSS() {
   const css = `
   .legend {
