@@ -1,7 +1,3 @@
-// ===============================
-// Gender Hotspot Map (Leaflet)
-// ===============================
-
 // 1) Map + English-label tiles
 const map = L.map('map', {
   zoomControl: true,
@@ -24,46 +20,24 @@ function getColor(risk) {
   }
 }
 
-// 3) Styles
+// 3) Styling each country polygon based on risk level
 function stylePolygon(feature) {
   const p = feature.properties || {};
-  // If you still have "intensity" (1..5), convert to opacity; else use risk colors.
-  const hasIntensity = Number.isFinite(p.intensity);
-  const fillOpacity = hasIntensity
-    ? 0.35 + Math.min(0.4, (p.intensity - 1) * 0.12)
-    : 0.75;
-
+  const riskLevel = p.risk_level || "Very Low / Unknown"; // Default value if no risk_level is found
   return {
     color: '#555',
-    weight: 1,
-    fillColor: getColor(p.risk_level),
-    fillOpacity
+    weight: 1.2,
+    fillColor: getColor(riskLevel), // Use the dynamic risk color
+    fillOpacity: 0.75
   };
 }
 
-function stylePoint(feature) {
-  const p = feature.properties || {};
-  return {
-    radius: 10,
-    color: '#555',
-    weight: 1,
-    fillColor: getColor(p.risk_level),
-    fillOpacity: 0.85
-  };
-}
-
-// 4) Popup content (robust to different schemas)
+// 4) Popup content for each country
 function onEachFeature(feature, layer) {
   const p = feature.properties || {};
-  // Build popup lines only for properties that exist
   const rows = [
-    p.country ? `<strong>${p.country}</strong>` : `<strong>Location</strong>`,
-    p.sector ? `Sector: ${p.sector}` : null,
-    p.indicator ? `Indicator: ${p.indicator}` : null,
-    (p.value !== undefined && p.value !== null) ? `Value: ${p.value}` : null,
-    p.risk_level ? `Risk Level: <strong>${p.risk_level}</strong>` : null,
-    (p.intensity !== undefined && p.intensity !== null) ? `Intensity: ${p.intensity}` : null,
-    p.description ? `<em>${p.description}</em>` : null
+    `<strong>${p.name}</strong>`,
+    p.risk_level ? `Risk Level: <strong>${p.risk_level}</strong>` : null
   ].filter(Boolean);
 
   if (rows.length) {
@@ -71,23 +45,7 @@ function onEachFeature(feature, layer) {
   }
 }
 
-// Optional: simple hover highlight for polygons
-function addHoverHighlight(layer) {
-  layer.on({
-    mouseover: (e) => {
-      const l = e.target;
-      l.setStyle({ weight: 2, color: '#333' });
-      if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
-        l.bringToFront();
-      }
-    },
-    mouseout: (e) => {
-      geojsonLayer.resetStyle(e.target);
-    }
-  });
-}
-
-// 5) Legend
+// 5) Legend for risk levels
 const legend = L.control({ position: 'bottomright' });
 legend.onAdd = function () {
   const div = L.DomUtil.create('div', 'legend');
@@ -102,9 +60,8 @@ legend.onAdd = function () {
 };
 legend.addTo(map);
 
-// 6) Load data (tries main dataset first, then falls back to demo)
-const PRIMARY_DATA = '/data/gender_hotspots.geojson';
-const FALLBACK_DATA = '/data/demo_hotspots.geojson';
+// 6) Load the geojson data dynamically
+const COUNTRIES_POLY = '/data/africa_countries.geojson';  // This should match your Flask route
 
 let geojsonLayer = null;
 
@@ -121,33 +78,30 @@ function addDataToMap(geojson) {
   }
 
   geojsonLayer = L.geoJSON(geojson, {
-    style: (feat) => (feat.geometry.type === 'Point' ? undefined : stylePolygon(feat)),
-    pointToLayer: (feature, latlng) => L.circleMarker(latlng, stylePoint(feature)),
-    onEachFeature: (feat, layer) => {
-      onEachFeature(feat, layer);
-      // Add hover only to polygons
-      if (feat.geometry && feat.geometry.type !== 'Point') addHoverHighlight(layer);
-    }
+    style: stylePolygon,
+    onEachFeature: onEachFeature
   }).addTo(map);
 
-  // Fit map to data bounds if possible
+  // Fit the map to the data bounds
   try {
     const b = geojsonLayer.getBounds();
     if (b.isValid()) map.fitBounds(b.pad(0.1));
   } catch (e) {
-    // If no bounds (e.g., single point), ignore
+    // If no bounds, just ignore
   }
 }
 
-// Try primary, then fallback to demo
-loadGeoJSON(PRIMARY_DATA)
-  .then(addDataToMap)
-  .catch(() => loadGeoJSON(FALLBACK_DATA).then(addDataToMap).catch(err => {
+loadGeoJSON(COUNTRIES_POLY)
+  .then(geojson => {
+    console.log('GeoJSON data loaded:', geojson);
+    addDataToMap(geojson);
+  })
+  .catch(err => {
     console.error('Failed to load any hotspot data:', err);
-  }));
+  });
 
-// 7) Minimal legend styles (kept here so you don’t forget the CSS)
-// Move these rules to your main CSS if you prefer.
+
+// 7) Minimal legend CSS styles
 (function injectLegendCSS() {
   const css = `
   .legend {

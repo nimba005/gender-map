@@ -13,9 +13,10 @@ def home():
 def map_page():
     return render_template("map.html", page="map")
 
-# (Optional) serve your demo GeoJSON
+# Serve geojson files from 'data' folder
 @app.route("/data/<path:filename>")
 def data_files(filename):
+    print(f"Serving file: {filename}")
     return send_from_directory(os.path.join(app.root_path, "data"), filename)
 
 if __name__ == "__main__":
