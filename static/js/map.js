@@ -37,7 +37,9 @@ function onEachFeature(feature, layer) {
   const p = feature.properties || {};
   const rows = [
     `<strong>${p.name}</strong>`,
-    p.risk_level ? `Risk Level: <strong>${p.risk_level}</strong>` : null
+    p.risk_level ? `Risk Level: <strong>${p.risk_level}</strong>` : null,
+    p.other_data ? `Additional Info: <strong>${p.other_data}</strong>` : null,
+    `<a href='/country/${p.name}' target='_blank'>Read More</a>`
   ].filter(Boolean);
 
   if (rows.length) {

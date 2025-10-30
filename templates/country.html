@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ country_data['name'] }} • Gender Hotspot Details{% endblock %}
+
+{% block content %}
+<section class="section">
+  <h1>{{ country_data['name'] }}</h1>
+  <p><strong>Risk Level:</strong> {{ country_data['risk_level'] }}</p>
+  <p><strong>Population:</strong> {{ country_data['population'] }}</p>
+  <p><strong>GDP:</strong> {{ country_data['gdp'] }}</p>
+
+  <h2>Gender Focus</h2>
+  <p><strong>Women Population:</strong> {{ country_data['gender_focus']['women_population'] }}</p>
+  <p><strong>Vulnerable Groups:</strong></p>
+  <ul>
+    {% for group in country_data['gender_focus']['vulnerable_groups'] %}
+      <li>{{ group }}</li>
+    {% endfor %}
+  </ul>
+  <p><strong>Gender Inclusion:</strong> {{ country_data['gender_focus']['gender_inclusion'] }}</p>
+
+  <h2>Additional Information</h2>
+  <p>{{ country_data['other_data'] }}</p>
+
+  <p><a href="{{ url_for('map_page') }}">Back to Map</a></p>
+</section>
+{% endblock %}
