@@ -35,17 +35,44 @@ function stylePolygon(feature) {
 // 4) Popup content for each country
 function onEachFeature(feature, layer) {
   const p = feature.properties || {};
-  const rows = [
-    `<strong>${p.name}</strong>`,
-    p.risk_level ? `Risk Level: <strong>${p.risk_level}</strong>` : null,
-    p.other_data ? `Additional Info: <strong>${p.other_data}</strong>` : null,
-    `<a href='/country/${p.name}' target='_blank'>Read More</a>`
-  ].filter(Boolean);
+  
+  // Start with basic info for the popup
+  let content = `
+    <strong>${p.name}</strong><br>
+    Risk Level: <strong>${p.risk_level || 'Unknown'}</strong><br>
+    Additional Info: <strong>${p.other_data || 'No data available'}</strong><br>
+    <button class="expand-btn">Read More</button>
+    <div class="expanded-content" style="display:none;">
+      <h3>Detailed Information</h3>
+      <p><strong>Population:</strong> ${p.population || 'N/A'}</p>
+      <p><strong>GDP:</strong> ${p.gdp || 'N/A'}</p>
+      <p><strong>Key Industries:</strong> ${p.key_industries ? p.key_industries.join(', ') : 'N/A'}</p>
+      <p><strong>Climate Risks:</strong> ${p.climate_risks ? p.climate_risks.join(', ') : 'N/A'}</p>
+      <p><strong>Gendered Climate Impact:</strong> ${p.gendered_climate_impact ? p.gendered_climate_impact.join(', ') : 'N/A'}</p>
+      <p><strong>Vulnerable Sectors:</strong> ${p.vulnerable_sectors ? p.vulnerable_sectors.join(', ') : 'N/A'}</p>
+      <p><strong>Government Initiatives:</strong> ${p.government_initiatives ? p.government_initiatives.join(', ') : 'N/A'}</p>
+      <p><strong>International Partners:</strong> ${p.international_partners ? p.international_partners.join(', ') : 'N/A'}</p>
+      <p><strong>Key Challenges:</strong> ${p.key_challenges ? p.key_challenges.join(', ') : 'N/A'}</p>
+    </div>
+  `;
 
-  if (rows.length) {
-    layer.bindPopup(rows.join('<br>'));
-  }
+  // Bind the content to the popup
+  layer.bindPopup(content);
+
+  // Add event listener to toggle the expanded content
+  layer.on('popupopen', function () {
+    const expandBtn = layer.getPopup().getElement().querySelector('.expand-btn');
+    const expandedContent = layer.getPopup().getElement().querySelector('.expanded-content');
+
+    // Toggle the visibility of the expanded content when the button is clicked
+    expandBtn.addEventListener('click', function () {
+      const isVisible = expandedContent.style.display === 'block';
+      expandedContent.style.display = isVisible ? 'none' : 'block';
+      expandBtn.innerHTML = isVisible ? 'Read More' : 'Read Less';
+    });
+  });
 }
+
 
 // 5) Legend for risk levels
 const legend = L.control({ position: 'bottomright' });
