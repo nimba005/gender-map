@@ -46,7 +46,44 @@
 
   <div id="map" class="map"></div>
 </section>
+
+<!-- District Panel (below map) -->
+<section class="section" id="districtPanel" style="display:none;">
+  <div class="districtHeader">
+    <div>
+      <h2 class="districtTitle">District Data (<span id="districtCount">0</span> shown)</h2>
+      <p class="muted" id="districtSub">Select a country to load districts.</p>
+    </div>
+
+    <div class="districtTools">
+      <input id="districtSearch" class="districtSearch" type="search" placeholder="Search districts..." />
+      <select id="districtSort" class="districtSort">
+        <option value="name_asc">Sort by Name</option>
+        <option value="score_desc">Sort by Score (High → Low)</option>
+        <option value="score_asc">Sort by Score (Low → High)</option>
+        <option value="risk_asc">Sort by Risk (Low → High)</option>
+        <option value="risk_desc">Sort by Risk (High → Low)</option>
+      </select>
+      <button id="scoreInfoBtn" class="btn" type="button">Score Info</button>
+    </div>
+  </div>
+
+  <div id="districtGrid" class="districtGrid"></div>
+</section>
+
+<!-- Score Info Modal -->
+<div id="scoreModal" class="modal" style="display:none;">
+  <div class="modal__backdrop" id="scoreModalClose"></div>
+  <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="scoreModalTitle">
+    <div class="modal__head">
+      <h3 id="scoreModalTitle">Score Info</h3>
+      <button class="modal__x" id="scoreModalX" type="button">✕</button>
+    </div>
+    <div class="modal__body" id="scoreModalBody"></div>
+  </div>
+</div>
 {% endblock %}
+
 
 {% block body_scripts %}
   <!-- 1) Leaflet JS -->
