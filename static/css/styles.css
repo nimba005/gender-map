@@ -75,6 +75,49 @@ main{ max-width: 1100px; margin: 0 auto; padding: 24px; }
 .legend i { width: 12px; height: 12px; float: left; margin-right: 6px; opacity: 0.8; }
 .legend h4 { margin: 0 0 4px; font-weight: 600; }
 
+/* FILTER BAR (map controls) */
+.filters{
+  display:flex;
+  gap:16px;
+  flex-wrap:wrap;
+  align-items:flex-end;
+  justify-content:center;
+  margin: 14px 0 6px;
+  padding: 12px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.filters__item{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  min-width: 220px;
+}
+
+.filters label{
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+.filters select{
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.18);
+  color: var(--ink);
+  padding: 0 10px;
+}
+
+/* Optional: a secondary button style */
+.btn--ghost{
+  background: rgba(78,168,255,.15);
+  color: var(--ink);
+  border: 1px solid rgba(78,168,255,.25);
+}
+
+
 /* Style for the expanded content inside the popup */
 .expanded-content { margin-top: 10px; max-height: 300px; overflow-y: auto; background-color: #f9f9f9; padding: 10px; border-radius: 5px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1); }
 

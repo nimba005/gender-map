@@ -14,19 +14,60 @@
 {% block content %}
 <section class="section">
   <h1>Map</h1>
-  <p class="muted">Zoom, pan, and click hotspots to view attributes.</p>
+  <p class="muted">Filter by country, sector, and dataset then refresh.</p>
+
+  <!-- Filters row -->
+  <div class="filters">
+    <div class="filters__item">
+      <label for="countrySelect">Country:</label>
+      <select id="countrySelect">
+        <option value="__all__">All</option>
+      </select>
+    </div>
+
+    <div class="filters__item">
+      <label for="sectorSelect">Sector:</label>
+      <select id="sectorSelect">
+        <option value="__all__">All</option>
+      </select>
+    </div>
+
+    <div class="filters__item">
+      <label for="metricSelect">Map Data:</label>
+      <select id="metricSelect">
+        <option value="risk_level">Risk Level</option>
+        <option value="vulnerability_score">Vulnerability Score</option>
+        <option value="gender_hotspot_score">Gender Hotspot Score</option>
+      </select>
+    </div>
+
+    <button id="refreshBtn" class="btn btn--ghost" type="button">Refresh</button>
+  </div>
+
   <div id="map" class="map"></div>
 </section>
 {% endblock %}
 
 {% block body_scripts %}
-  <!-- Leaflet JS -->
+  <!-- 1) Leaflet JS -->
   <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
     crossorigin=""
   ></script>
 
-  <!-- Your map logic -->
+  <!-- 2) Google Maps JS API (must load before GoogleMutant) -->
+  <script
+    async
+    defer
+    src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&v=weekly"
+  ></script>
+
+  <!-- 3) Leaflet GoogleMutant plugin (connects Google Maps to Leaflet) -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/leaflet.gridlayer.googlemutant@0.15.0/dist/Leaflet.GoogleMutant.js"
+  ></script>
+
+  <!-- 4) Your map logic -->
   <script src="{{ url_for('static', filename='js/map.js') }}"></script>
 {% endblock %}
