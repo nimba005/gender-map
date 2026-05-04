@@ -1,110 +1,158 @@
 {% extends "base.html" %}
-{% block title %}Map • Gender Hotspot Maps{% endblock %}
+{% block title %}Interactive Map | AGNES Gender Hotspot Map{% endblock %}
 
 {% block head_extra %}
-  <!-- Leaflet CSS -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""
-  />
+    crossorigin="">
 {% endblock %}
 
 {% block content %}
-<section class="section">
-  <h1>Map</h1>
-  <p class="muted">Filter by country, sector, and dataset then refresh.</p>
-
-  <!-- Filters row -->
-  <div class="filters">
-    <div class="filters__item">
-      <label for="countrySelect">Country:</label>
-      <select id="countrySelect">
-        <option value="__all__">All</option>
-      </select>
+<section class="map-shell">
+  <aside class="control-panel" aria-label="Map filters">
+    <div class="panel-heading">
+      <span class="eyebrow">Interactive study map</span>
+      <h1>Gender Hotspot Map</h1>
+      <p>Filter country, sector, metric, and risk level to review hotspot priorities.</p>
     </div>
 
-    <div class="filters__item">
-      <label for="sectorSelect">Sector:</label>
-      <select id="sectorSelect">
-        <option value="__all__">All</option>
-      </select>
+    <div class="filter-stack">
+      <label>
+        <span>Country</span>
+        <select id="countrySelect"></select>
+      </label>
+
+      <label>
+        <span>Sector</span>
+        <select id="sectorSelect"></select>
+      </label>
+
+      <label>
+        <span>Metric</span>
+        <select id="metricSelect">
+          <option value="gender_hotspot_score">Gender hotspot score</option>
+          <option value="vulnerability_score">Vulnerability score</option>
+          <option value="exposure">Exposure</option>
+          <option value="sensitivity">Sensitivity</option>
+          <option value="adaptive_capacity">Adaptive capacity</option>
+          <option value="risk_level">Risk level</option>
+        </select>
+      </label>
+
+      <label>
+        <span>Risk level</span>
+        <select id="riskSelect">
+          <option value="__all__">All risk levels</option>
+          <option value="Very High">Very High</option>
+          <option value="High">High</option>
+          <option value="Medium">Medium</option>
+          <option value="Low">Low</option>
+          <option value="Very Low">Very Low</option>
+        </select>
+      </label>
+
+      <label>
+        <span>Search county / region</span>
+        <input id="searchInput" type="search" placeholder="Type a place name">
+      </label>
     </div>
 
-    <div class="filters__item">
-      <label for="metricSelect">Map Data:</label>
-      <select id="metricSelect">
-        <option value="risk_level">Risk Level</option>
-        <option value="vulnerability_score">Vulnerability Score</option>
-        <option value="gender_hotspot_score">Gender Hotspot Score</option>
-      </select>
+    <div class="metric-note" id="metricNote"></div>
+  </aside>
+
+  <section class="map-workspace">
+    <div class="country-cards" id="countryCards"></div>
+
+    <div class="summary-grid" id="summaryGrid">
+      <article>
+        <span>Visible records</span>
+        <strong id="visibleCount">0</strong>
+      </article>
+      <article>
+        <span>Average score</span>
+        <strong id="averageScore">N/A</strong>
+      </article>
+      <article>
+        <span>Highest hotspot</span>
+        <strong id="highestHotspot">N/A</strong>
+      </article>
+      <article>
+        <span>Top sector</span>
+        <strong id="topSector">N/A</strong>
+      </article>
     </div>
 
-    <button id="refreshBtn" class="btn btn--ghost" type="button">Refresh</button>
-  </div>
+    <div class="map-card">
+      <div id="map" class="map" aria-label="Gender hotspot map"></div>
+      <div class="map-legend" id="mapLegend"></div>
+    </div>
 
-  <div id="map" class="map"></div>
+    <section class="county-overview" id="countyOverview" hidden>
+      <div>
+        <span class="card-kicker" id="overviewKicker">County overview</span>
+        <h2 id="overviewTitle">Select a county</h2>
+        <p id="overviewSummary"></p>
+      </div>
+      <div class="overview-score">
+        <span>Selected metric</span>
+        <strong id="overviewScore">N/A</strong>
+      </div>
+      <div class="overview-grid" id="overviewGrid"></div>
+      <button class="button button-primary" id="overviewReadMore" type="button">Read full report</button>
+    </section>
+
+    <section class="analytics-grid">
+      <article class="chart-panel">
+        <div>
+          <span class="card-kicker">Sector profile</span>
+          <h2>Average hotspot by sector</h2>
+        </div>
+        <div class="bar-chart" id="sectorChart"></div>
+      </article>
+
+      <article class="chart-panel">
+        <div>
+          <span class="card-kicker">Risk distribution</span>
+          <h2>Visible records by risk class</h2>
+        </div>
+        <div class="risk-list" id="riskList"></div>
+      </article>
+    </section>
+
+    <section class="records-section">
+      <div class="records-header">
+        <div>
+          <span class="card-kicker">Hotspot records</span>
+          <h2 id="recordsTitle">Study records</h2>
+        </div>
+        <select id="sortSelect" aria-label="Sort records">
+          <option value="score_desc">Score: high to low</option>
+          <option value="score_asc">Score: low to high</option>
+          <option value="name_asc">Name: A to Z</option>
+          <option value="risk_desc">Risk: high to low</option>
+        </select>
+      </div>
+      <div class="record-grid" id="recordGrid"></div>
+      <div class="empty-state" id="emptyState" hidden>
+        <h3>No detailed records match this view yet.</h3>
+        <p>Select Kenya to view county-level hotspot data from the supplied workbooks. Uganda, Botswana, and Ghana are ready for their detailed datasets.</p>
+      </div>
+    </section>
+  </section>
 </section>
-
-<!-- District Panel (below map) -->
-<section class="section" id="districtPanel" style="display:none;">
-  <div class="districtHeader">
-    <div>
-      <h2 class="districtTitle">District Data (<span id="districtCount">0</span> shown)</h2>
-      <p class="muted" id="districtSub">Select a country to load districts.</p>
-    </div>
-
-    <div class="districtTools">
-      <input id="districtSearch" class="districtSearch" type="search" placeholder="Search districts..." />
-      <select id="districtSort" class="districtSort">
-        <option value="name_asc">Sort by Name</option>
-        <option value="score_desc">Sort by Score (High → Low)</option>
-        <option value="score_asc">Sort by Score (Low → High)</option>
-        <option value="risk_asc">Sort by Risk (Low → High)</option>
-        <option value="risk_desc">Sort by Risk (High → Low)</option>
-      </select>
-      <button id="scoreInfoBtn" class="btn" type="button">Score Info</button>
-    </div>
-  </div>
-
-  <div id="districtGrid" class="districtGrid"></div>
-</section>
-
-<!-- Score Info Modal -->
-<div id="scoreModal" class="modal" style="display:none;">
-  <div class="modal__backdrop" id="scoreModalClose"></div>
-  <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="scoreModalTitle">
-    <div class="modal__head">
-      <h3 id="scoreModalTitle">Score Info</h3>
-      <button class="modal__x" id="scoreModalX" type="button">✕</button>
-    </div>
-    <div class="modal__body" id="scoreModalBody"></div>
-  </div>
-</div>
 {% endblock %}
 
-
 {% block body_scripts %}
-  <!-- 1) Leaflet JS -->
   <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""
-  ></script>
-
-  <!-- 2) Google Maps JS API (must load before GoogleMutant) -->
-  <script
-    async
-    defer
-    src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&v=weekly"
-  ></script>
-
-  <!-- 3) Leaflet GoogleMutant plugin (connects Google Maps to Leaflet) -->
-  <script
-    src="https://cdn.jsdelivr.net/npm/leaflet.gridlayer.googlemutant@0.15.0/dist/Leaflet.GoogleMutant.js"
-  ></script>
-
-  <!-- 4) Your map logic -->
+    crossorigin=""></script>
+  {% if google_maps_api_key %}
+    <script
+      src="https://maps.googleapis.com/maps/api/js?key={{ google_maps_api_key }}&v=weekly"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet.gridlayer.googlemutant@0.15.0/dist/Leaflet.GoogleMutant.js"></script>
+  {% endif %}
   <script src="{{ url_for('static', filename='js/map.js') }}"></script>
 {% endblock %}

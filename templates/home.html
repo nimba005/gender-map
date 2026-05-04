@@ -1,26 +1,104 @@
 {% extends "base.html" %}
-{% block title %}Home • Gender Hotspot Maps{% endblock %}
+{% block title %}Overview | AGNES Gender Hotspot Map{% endblock %}
 
 {% block content %}
 <section class="hero">
-  <div class="hero__content">
-    <p class="eyebrow">Welcome</p>
-    <h1 class="hero__title">Gender Hotspot Maps</h1>
-    <p class="hero__subtitle">
-      Simple decision-support starter app. View a demo Africa map with mock “hotspots.”
-      You can replace the demo data with real sex-disaggregated indicators later.
+  <div class="hero-copy">
+    <span class="eyebrow">Gender, climate risk, and decision support</span>
+    <h1>Gender hotspot intelligence for Kenya, Uganda, Botswana, and Ghana.</h1>
+    <p>
+      Explore where climate exposure, gendered vulnerability, and adaptive capacity combine to create
+      priority hotspots across water, energy, and agriculture.
     </p>
-    <a class="btn" href="{{ url_for('map_page') }}">Go to Map</a>
+    <div class="hero-actions">
+      <a class="button button-primary" href="{{ url_for('map_page') }}">Open Interactive Map</a>
+      <a class="button button-secondary" href="#study-scope">View Study Scope</a>
+    </div>
+  </div>
+
+  <div class="hero-panel" aria-label="Study summary">
+    <div class="hero-stat">
+      <strong>4</strong>
+      <span>Countries in scope</span>
+    </div>
+    <div class="hero-stat">
+      <strong>3</strong>
+      <span>Priority sectors</span>
+    </div>
+    <div class="hero-stat">
+      <strong>47</strong>
+      <span>Kenya counties loaded</span>
+    </div>
   </div>
 </section>
 
-<section class="section">
-  <h2>What this starter includes</h2>
-  <ul class="bullet-list">
-    <li>Clean two-item navbar: <strong>Home</strong> and <strong>Map</strong></li>
-    <li>Leaflet basemap of Africa</li>
-    <li>Demo GeoJSON hotspot layer</li>
-    <li>Structure ready for API/data growth</li>
-  </ul>
+<section class="section-grid" id="study-scope">
+  <article class="info-card">
+    <span class="card-kicker">What the map shows</span>
+    <h2>Hotspots are presented as practical oversight signals.</h2>
+    <p>
+      The dashboard combines exposure, sensitivity, and adaptive capacity into a normalized gender
+      hotspot score. Higher scores indicate places where gender-responsive climate action may need
+      closer attention.
+    </p>
+  </article>
+
+  <article class="info-card">
+    <span class="card-kicker">Current data</span>
+    <h2>Kenya county data is active from the supplied workbooks.</h2>
+    <p>
+      Water, energy, and agriculture indicators were processed into county-level metrics.
+      Uganda, Botswana, and Ghana are included as country study layers and are ready for their
+      detailed district or regional datasets.
+    </p>
+  </article>
+</section>
+
+<section class="country-strip">
+  <article>
+    <strong>Kenya</strong>
+    <span>County polygons and sector metrics loaded</span>
+  </article>
+  <article>
+    <strong>Uganda</strong>
+    <span>Country study layer ready for district data</span>
+  </article>
+  <article>
+    <strong>Botswana</strong>
+    <span>Country study layer ready for district data</span>
+  </article>
+  <article>
+    <strong>Ghana</strong>
+    <span>Country study layer ready for regional data</span>
+  </article>
+</section>
+
+<section class="workflow-section">
+  <div>
+    <span class="eyebrow">How to use it</span>
+    <h2>Move from overview to action in four steps.</h2>
+  </div>
+  <div class="workflow-grid">
+    <article>
+      <span>01</span>
+      <strong>Select a country</strong>
+      <p>Start with all four study countries or focus on one country.</p>
+    </article>
+    <article>
+      <span>02</span>
+      <strong>Choose a sector</strong>
+      <p>Compare water, energy, and agriculture hotspot patterns.</p>
+    </article>
+    <article>
+      <span>03</span>
+      <strong>Read the map and cards</strong>
+      <p>Use color, rank, and county notes to understand priority areas.</p>
+    </article>
+    <article>
+      <span>04</span>
+      <strong>Prepare decisions</strong>
+      <p>Use the signals to guide research, programming, policy dialogue, and investment targeting.</p>
+    </article>
+  </div>
 </section>
 {% endblock %}

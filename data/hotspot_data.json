@@ -1,0 +1,2499 @@
+{
+  "meta": {
+    "title": "AGNES Gender Hotspot Map",
+    "countries": [
+      "Kenya",
+      "Uganda",
+      "Botswana",
+      "Ghana"
+    ],
+    "sectors": [
+      "Water",
+      "Energy",
+      "Agriculture"
+    ],
+    "metrics": [
+      "risk_level",
+      "gender_hotspot_score",
+      "vulnerability_score",
+      "exposure",
+      "sensitivity",
+      "adaptive_capacity"
+    ],
+    "source_note": "Kenya county metrics were generated from the supplied Hotspot Water, Energy, and Agriculture workbooks."
+  },
+  "countries": [
+    {
+      "center": [
+        -0.0236,
+        37.9062
+      ],
+      "zoom": 6,
+      "status": "County data loaded",
+      "study_note": "County-level gender hotspot metrics were generated from the supplied water, energy, and agriculture workbooks.",
+      "admin_label": "Counties",
+      "geometry_file": "kenya_districts.geojson",
+      "country": "Kenya",
+      "record_count": 47,
+      "average_score": 46.7,
+      "risk_level": "Medium",
+      "highest_hotspot": "Nyandarua",
+      "top_sector": "Water"
+    },
+    {
+      "center": [
+        1.3733,
+        32.2903
+      ],
+      "zoom": 6,
+      "status": "Country study layer",
+      "study_note": "The dashboard is prepared for Uganda district data. Add Uganda sector workbooks or GeoJSON to activate district-level polygons.",
+      "admin_label": "Districts",
+      "geometry_file": null,
+      "country": "Uganda",
+      "record_count": 0,
+      "average_score": null,
+      "risk_level": "Data pending",
+      "highest_hotspot": null,
+      "top_sector": null
+    },
+    {
+      "center": [
+        -22.3285,
+        24.6849
+      ],
+      "zoom": 6,
+      "status": "Country study layer",
+      "study_note": "The dashboard is prepared for Botswana district data. Add Botswana sector workbooks or GeoJSON to activate district-level polygons.",
+      "admin_label": "Districts",
+      "geometry_file": null,
+      "country": "Botswana",
+      "record_count": 0,
+      "average_score": null,
+      "risk_level": "Data pending",
+      "highest_hotspot": null,
+      "top_sector": null
+    },
+    {
+      "center": [
+        7.9465,
+        -1.0232
+      ],
+      "zoom": 6,
+      "status": "Country study layer",
+      "study_note": "The dashboard is prepared for Ghana regional data. Add Ghana sector workbooks or GeoJSON to activate regional polygons.",
+      "admin_label": "Regions",
+      "geometry_file": null,
+      "country": "Ghana",
+      "record_count": 0,
+      "average_score": null,
+      "risk_level": "Data pending",
+      "highest_hotspot": null,
+      "top_sector": null
+    }
+  ],
+  "records": {
+    "Kenya": [
+      {
+        "name": "Baringo",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 55.5,
+            "vulnerability_score": 53.6,
+            "exposure": 47.6,
+            "sensitivity": 49.0,
+            "adaptive_capacity": 30.2,
+            "raw_value": 74.7,
+            "indicators": [
+              "Women collecting water: 74.7%",
+              "Households with safe water: 38.7%",
+              "Average collection time indicator: 36.8"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 44.0,
+            "vulnerability_score": 43.7,
+            "exposure": 47.6,
+            "sensitivity": 35.7,
+            "adaptive_capacity": 51.2,
+            "raw_value": 136873.0,
+            "indicators": [
+              "Women with energy access: 136,873",
+              "Households depending on firewood: 81.4%",
+              "Women employed in energy: 29"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 47.2,
+            "vulnerability_score": 44.8,
+            "exposure": 47.6,
+            "sensitivity": 22.5,
+            "adaptive_capacity": 28.5,
+            "raw_value": 117326.0,
+            "indicators": [
+              "Female population in agriculture: 117,326",
+              "Women land ownership index: 0.263",
+              "Women dependent on agriculture index: 0.286"
+            ]
+          }
+        },
+        "composite_score": 48.9,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Bomet",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 55.3,
+            "vulnerability_score": 53.4,
+            "exposure": 47.6,
+            "sensitivity": 47.9,
+            "adaptive_capacity": 29.5,
+            "raw_value": 94.1,
+            "indicators": [
+              "Women collecting water: 94.1%",
+              "Households with safe water: 73.5%",
+              "Average collection time indicator: 9.0"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 47.5,
+            "vulnerability_score": 47.2,
+            "exposure": 47.6,
+            "sensitivity": 43.8,
+            "adaptive_capacity": 48.8,
+            "raw_value": 189151.0,
+            "indicators": [
+              "Women with energy access: 189,151",
+              "Households depending on firewood: 88.5%",
+              "Women employed in energy: 41"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 51.0,
+            "vulnerability_score": 48.7,
+            "exposure": 47.6,
+            "sensitivity": 32.5,
+            "adaptive_capacity": 27.0,
+            "raw_value": 162609.0,
+            "indicators": [
+              "Female population in agriculture: 162,609",
+              "Women land ownership index: 0.235",
+              "Women dependent on agriculture index: 0.653"
+            ]
+          }
+        },
+        "composite_score": 51.3,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Bungoma",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 56.7,
+            "vulnerability_score": 55.1,
+            "exposure": 57.8,
+            "sensitivity": 39.1,
+            "adaptive_capacity": 26.7,
+            "raw_value": 64.4,
+            "indicators": [
+              "Women collecting water: 64.4%",
+              "Households with safe water: 70.0%",
+              "Average collection time indicator: 18.4"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 54.0,
+            "vulnerability_score": 53.8,
+            "exposure": 57.8,
+            "sensitivity": 45.7,
+            "adaptive_capacity": 41.5,
+            "raw_value": 336588.0,
+            "indicators": [
+              "Women with energy access: 336,588",
+              "Households depending on firewood: 78.3%",
+              "Women employed in energy: 127"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 56.8,
+            "vulnerability_score": 55.4,
+            "exposure": 57.8,
+            "sensitivity": 40.9,
+            "adaptive_capacity": 28.4,
+            "raw_value": 285746.0,
+            "indicators": [
+              "Female population in agriculture: 285,746",
+              "Women land ownership index: 0.421",
+              "Women dependent on agriculture index: 0.285"
+            ]
+          }
+        },
+        "composite_score": 55.8,
+        "risk_level": "Medium",
+        "top_sector": "Agriculture"
+      },
+      {
+        "name": "Busia",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 59.6,
+            "vulnerability_score": 58.1,
+            "exposure": 57.8,
+            "sensitivity": 46.4,
+            "adaptive_capacity": 25.3,
+            "raw_value": 75.5,
+            "indicators": [
+              "Women collecting water: 75.5%",
+              "Households with safe water: 57.1%",
+              "Average collection time indicator: 21.6"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 48.7,
+            "vulnerability_score": 49.0,
+            "exposure": 57.8,
+            "sensitivity": 37.4,
+            "adaptive_capacity": 49.0,
+            "raw_value": 191982.0,
+            "indicators": [
+              "Women with energy access: 191,982",
+              "Households depending on firewood: 73.6%",
+              "Women employed in energy: 59"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 53.9,
+            "vulnerability_score": 52.4,
+            "exposure": 57.8,
+            "sensitivity": 33.1,
+            "adaptive_capacity": 29.4,
+            "raw_value": 157402.0,
+            "indicators": [
+              "Female population in agriculture: 157,402",
+              "Women land ownership index: 0.433",
+              "Women dependent on agriculture index: 0.478"
+            ]
+          }
+        },
+        "composite_score": 54.1,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Elgeyo-Marakwet",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 56.3,
+            "vulnerability_score": 54.2,
+            "exposure": 47.6,
+            "sensitivity": 48.1,
+            "adaptive_capacity": 26.7,
+            "raw_value": 80.9,
+            "indicators": [
+              "Women collecting water: 80.9%",
+              "Households with safe water: 64.2%",
+              "Average collection time indicator: 6.8"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 44.7,
+            "vulnerability_score": 44.4,
+            "exposure": 47.6,
+            "sensitivity": 36.7,
+            "adaptive_capacity": 50.2,
+            "raw_value": 87256.0,
+            "indicators": [
+              "Women with energy access: 87,256",
+              "Households depending on firewood: 87.2%",
+              "Women employed in energy: 20"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 47.5,
+            "vulnerability_score": 44.7,
+            "exposure": 47.6,
+            "sensitivity": 19.4,
+            "adaptive_capacity": 24.6,
+            "raw_value": 78147.0,
+            "indicators": [
+              "Female population in agriculture: 78,147",
+              "Women land ownership index: 0.181",
+              "Women dependent on agriculture index: 0.466"
+            ]
+          }
+        },
+        "composite_score": 49.5,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Embu",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 38.6,
+            "vulnerability_score": 33.4,
+            "exposure": 0,
+            "sensitivity": 44.1,
+            "adaptive_capacity": 28.3,
+            "raw_value": 52.7,
+            "indicators": [
+              "Women collecting water: 52.7%",
+              "Households with safe water: 73.0%",
+              "Average collection time indicator: 12.5"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 26.3,
+            "vulnerability_score": 23.3,
+            "exposure": 0,
+            "sensitivity": 36.1,
+            "adaptive_capacity": 57.1,
+            "raw_value": 158714.0,
+            "indicators": [
+              "Women with energy access: 158,714",
+              "Households depending on firewood: 70.3%",
+              "Women employed in energy: 100"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 27.5,
+            "vulnerability_score": 22.3,
+            "exposure": 0,
+            "sensitivity": 16.0,
+            "adaptive_capacity": 33.4,
+            "raw_value": 120079.0,
+            "indicators": [
+              "Female population in agriculture: 120,079",
+              "Women land ownership index: 0.113",
+              "Women dependent on agriculture index: 0.405"
+            ]
+          }
+        },
+        "composite_score": 30.8,
+        "risk_level": "Low",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Garissa",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 41.7,
+            "vulnerability_score": 38.9,
+            "exposure": 26.2,
+            "sensitivity": 37.0,
+            "adaptive_capacity": 38.1,
+            "raw_value": 40.0,
+            "indicators": [
+              "Women collecting water: 40.0%",
+              "Households with safe water: 70.8%",
+              "Average collection time indicator: 18.1"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 37.8,
+            "vulnerability_score": 35.9,
+            "exposure": 26.2,
+            "sensitivity": 36.9,
+            "adaptive_capacity": 49.9,
+            "raw_value": 110738.0,
+            "indicators": [
+              "Women with energy access: 110,738",
+              "Households depending on firewood: 72.5%",
+              "Women employed in energy: 41"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 39.5,
+            "vulnerability_score": 35.0,
+            "exposure": 26.2,
+            "sensitivity": 14.5,
+            "adaptive_capacity": 22.1,
+            "raw_value": 102089.0,
+            "indicators": [
+              "Female population in agriculture: 102,089",
+              "Women land ownership index: 0.018",
+              "Women dependent on agriculture index: 0.007"
+            ]
+          }
+        },
+        "composite_score": 39.7,
+        "risk_level": "Low",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Homa Bay",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "High",
+            "gender_hotspot_score": 70.2,
+            "vulnerability_score": 71.6,
+            "exposure": 100.0,
+            "sensitivity": 40.2,
+            "adaptive_capacity": 29.7,
+            "raw_value": 71.3,
+            "indicators": [
+              "Women collecting water: 71.3%",
+              "Households with safe water: 57.2%",
+              "Average collection time indicator: 23.8"
+            ]
+          },
+          "Energy": {
+            "risk_level": "High",
+            "gender_hotspot_score": 62.9,
+            "vulnerability_score": 66.3,
+            "exposure": 100.0,
+            "sensitivity": 41.2,
+            "adaptive_capacity": 52.4,
+            "raw_value": 232979.0,
+            "indicators": [
+              "Women with energy access: 232,979",
+              "Households depending on firewood: 74.4%",
+              "Women employed in energy: 84"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "High",
+            "gender_hotspot_score": 67.0,
+            "vulnerability_score": 68.7,
+            "exposure": 100.0,
+            "sensitivity": 35.1,
+            "adaptive_capacity": 34.1,
+            "raw_value": 179980.0,
+            "indicators": [
+              "Female population in agriculture: 179,980",
+              "Women land ownership index: 0.513",
+              "Women dependent on agriculture index: 0.323"
+            ]
+          }
+        },
+        "composite_score": 66.7,
+        "risk_level": "High",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Isiolo",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 38.4,
+            "vulnerability_score": 34.2,
+            "exposure": 0,
+            "sensitivity": 54.1,
+            "adaptive_capacity": 38.8,
+            "raw_value": 83.4,
+            "indicators": [
+              "Women collecting water: 83.4%",
+              "Households with safe water: 72.1%",
+              "Average collection time indicator: 20.5"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 24.7,
+            "vulnerability_score": 21.6,
+            "exposure": 0,
+            "sensitivity": 30.3,
+            "adaptive_capacity": 56.2,
+            "raw_value": 45571.0,
+            "indicators": [
+              "Women with energy access: 45,571",
+              "Households depending on firewood: 60.7%",
+              "Women employed in energy: 24"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 27.2,
+            "vulnerability_score": 21.5,
+            "exposure": 0,
+            "sensitivity": 10.6,
+            "adaptive_capacity": 28.9,
+            "raw_value": 35902.0,
+            "indicators": [
+              "Female population in agriculture: 35,902",
+              "Women land ownership index: 0.089",
+              "Women dependent on agriculture index: 0.086"
+            ]
+          }
+        },
+        "composite_score": 30.1,
+        "risk_level": "Low",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Kajiado",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 54.4,
+            "vulnerability_score": 52.9,
+            "exposure": 47.6,
+            "sensitivity": 50.2,
+            "adaptive_capacity": 34.7,
+            "raw_value": 63.9,
+            "indicators": [
+              "Women collecting water: 63.9%",
+              "Households with safe water: 73.8%",
+              "Average collection time indicator: 13.1"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 40.0,
+            "vulnerability_score": 40.7,
+            "exposure": 47.6,
+            "sensitivity": 35.7,
+            "adaptive_capacity": 63.3,
+            "raw_value": 212922.0,
+            "indicators": [
+              "Women with energy access: 212,922",
+              "Households depending on firewood: 29.0%",
+              "Women employed in energy: 393"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 54.0,
+            "vulnerability_score": 52.2,
+            "exposure": 47.6,
+            "sensitivity": 45.8,
+            "adaptive_capacity": 31.4,
+            "raw_value": 102786.0,
+            "indicators": [
+              "Female population in agriculture: 102,786",
+              "Women land ownership index: 0.162",
+              "Women dependent on agriculture index: 0.059"
+            ]
+          }
+        },
+        "composite_score": 49.5,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Kakamega",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 56.2,
+            "vulnerability_score": 54.9,
+            "exposure": 57.8,
+            "sensitivity": 40.5,
+            "adaptive_capacity": 29.8,
+            "raw_value": 75.2,
+            "indicators": [
+              "Women collecting water: 75.2%",
+              "Households with safe water: 74.4%",
+              "Average collection time indicator: 14.6"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 54.5,
+            "vulnerability_score": 54.5,
+            "exposure": 57.8,
+            "sensitivity": 49.4,
+            "adaptive_capacity": 43.7,
+            "raw_value": 398865.0,
+            "indicators": [
+              "Women with energy access: 398,865",
+              "Households depending on firewood: 81.0%",
+              "Women employed in energy: 148"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 54.8,
+            "vulnerability_score": 53.7,
+            "exposure": 57.8,
+            "sensitivity": 39.3,
+            "adaptive_capacity": 32.7,
+            "raw_value": 335523.0,
+            "indicators": [
+              "Female population in agriculture: 335,523",
+              "Women land ownership index: 0.243",
+              "Women dependent on agriculture index: 0.302"
+            ]
+          }
+        },
+        "composite_score": 55.2,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Kericho",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 51.6,
+            "vulnerability_score": 49.7,
+            "exposure": 47.6,
+            "sensitivity": 38.9,
+            "adaptive_capacity": 31.7,
+            "raw_value": 85.4,
+            "indicators": [
+              "Women collecting water: 85.4%",
+              "Households with safe water: 62.5%",
+              "Average collection time indicator: 10.5"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 45.6,
+            "vulnerability_score": 45.5,
+            "exposure": 47.6,
+            "sensitivity": 41.6,
+            "adaptive_capacity": 52.3,
+            "raw_value": 197952.0,
+            "indicators": [
+              "Women with energy access: 197,952",
+              "Households depending on firewood: 79.1%",
+              "Women employed in energy: 64"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 47.4,
+            "vulnerability_score": 45.1,
+            "exposure": 47.6,
+            "sensitivity": 23.7,
+            "adaptive_capacity": 29.0,
+            "raw_value": 161769.0,
+            "indicators": [
+              "Female population in agriculture: 161,769",
+              "Women land ownership index: 0.184",
+              "Women dependent on agriculture index: 0.641"
+            ]
+          }
+        },
+        "composite_score": 48.2,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Kiambu",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 45.5,
+            "vulnerability_score": 42.5,
+            "exposure": 28.2,
+            "sensitivity": 41.2,
+            "adaptive_capacity": 32.8,
+            "raw_value": 65.0,
+            "indicators": [
+              "Women collecting water: 65.0%",
+              "Households with safe water: 94.2%",
+              "Average collection time indicator: 1.8"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 40.1,
+            "vulnerability_score": 40.1,
+            "exposure": 28.2,
+            "sensitivity": 57.5,
+            "adaptive_capacity": 65.3,
+            "raw_value": 534922.0,
+            "indicators": [
+              "Women with energy access: 534,922",
+              "Households depending on firewood: 22.3%",
+              "Women employed in energy: 1,468"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 41.4,
+            "vulnerability_score": 38.1,
+            "exposure": 28.2,
+            "sensitivity": 28.7,
+            "adaptive_capacity": 32.7,
+            "raw_value": 199482.0,
+            "indicators": [
+              "Female population in agriculture: 199,482",
+              "Women land ownership index: 0.198",
+              "Women dependent on agriculture index: 0.184"
+            ]
+          }
+        },
+        "composite_score": 42.3,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Kilifi",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 49.7,
+            "vulnerability_score": 46.6,
+            "exposure": 35.6,
+            "sensitivity": 39.1,
+            "adaptive_capacity": 25.6,
+            "raw_value": 74.3,
+            "indicators": [
+              "Women collecting water: 74.3%",
+              "Households with safe water: 66.2%",
+              "Average collection time indicator: 16.3"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 42.7,
+            "vulnerability_score": 41.2,
+            "exposure": 35.6,
+            "sensitivity": 38.5,
+            "adaptive_capacity": 46.0,
+            "raw_value": 284698.0,
+            "indicators": [
+              "Women with energy access: 284,698",
+              "Households depending on firewood: 58.3%",
+              "Women employed in energy: 118"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 45.7,
+            "vulnerability_score": 42.1,
+            "exposure": 35.6,
+            "sensitivity": 25.2,
+            "adaptive_capacity": 23.9,
+            "raw_value": 202891.0,
+            "indicators": [
+              "Female population in agriculture: 202,891",
+              "Women land ownership index: 0.162",
+              "Women dependent on agriculture index: 0.095"
+            ]
+          }
+        },
+        "composite_score": 46.0,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Kirinyaga",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 47.5,
+            "vulnerability_score": 44.3,
+            "exposure": 28.2,
+            "sensitivity": 44.3,
+            "adaptive_capacity": 30.1,
+            "raw_value": 54.8,
+            "indicators": [
+              "Women collecting water: 54.8%",
+              "Households with safe water: 76.2%",
+              "Average collection time indicator: 6.2"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 33.0,
+            "vulnerability_score": 32.5,
+            "exposure": 28.2,
+            "sensitivity": 35.4,
+            "adaptive_capacity": 64.5,
+            "raw_value": 170923.0,
+            "indicators": [
+              "Women with energy access: 170,923",
+              "Households depending on firewood: 65.4%",
+              "Women employed in energy: 144"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 38.0,
+            "vulnerability_score": 34.7,
+            "exposure": 28.2,
+            "sensitivity": 19.2,
+            "adaptive_capacity": 33.3,
+            "raw_value": 121786.0,
+            "indicators": [
+              "Female population in agriculture: 121,786",
+              "Women land ownership index: 0.201",
+              "Women dependent on agriculture index: 0.271"
+            ]
+          }
+        },
+        "composite_score": 39.5,
+        "risk_level": "Low",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Kisli",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "High",
+            "gender_hotspot_score": 67.5,
+            "vulnerability_score": 69.4,
+            "exposure": 100.0,
+            "sensitivity": 38.0,
+            "adaptive_capacity": 35.6,
+            "raw_value": 66.2,
+            "indicators": [
+              "Women collecting water: 66.2%",
+              "Households with safe water: 44.4%",
+              "Average collection time indicator: 34.0"
+            ]
+          },
+          "Energy": {
+            "risk_level": "High",
+            "gender_hotspot_score": 63.1,
+            "vulnerability_score": 66.4,
+            "exposure": 100.0,
+            "sensitivity": 41.3,
+            "adaptive_capacity": 52.0,
+            "raw_value": 277686.0,
+            "indicators": [
+              "Women with energy access: 277,686",
+              "Households depending on firewood: 78.0%",
+              "Women employed in energy: 94"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "High",
+            "gender_hotspot_score": 69.0,
+            "vulnerability_score": 70.5,
+            "exposure": 100.0,
+            "sensitivity": 37.8,
+            "adaptive_capacity": 30.8,
+            "raw_value": 231561.0,
+            "indicators": [
+              "Female population in agriculture: 231,561",
+              "Women land ownership index: 0.5",
+              "Women dependent on agriculture index: 0.548"
+            ]
+          }
+        },
+        "composite_score": 66.5,
+        "risk_level": "High",
+        "top_sector": "Agriculture"
+      },
+      {
+        "name": "Kisumu",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "High",
+            "gender_hotspot_score": 71.5,
+            "vulnerability_score": 72.6,
+            "exposure": 100.0,
+            "sensitivity": 40.2,
+            "adaptive_capacity": 25.7,
+            "raw_value": 78.1,
+            "indicators": [
+              "Women collecting water: 78.1%",
+              "Households with safe water: 71.5%",
+              "Average collection time indicator: 13.2"
+            ]
+          },
+          "Energy": {
+            "risk_level": "High",
+            "gender_hotspot_score": 60.3,
+            "vulnerability_score": 64.0,
+            "exposure": 100.0,
+            "sensitivity": 37.8,
+            "adaptive_capacity": 57.0,
+            "raw_value": 222409.0,
+            "indicators": [
+              "Women with energy access: 222,409",
+              "Households depending on firewood: 49.7%",
+              "Women employed in energy: 228"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "High",
+            "gender_hotspot_score": 63.4,
+            "vulnerability_score": 64.5,
+            "exposure": 100.0,
+            "sensitivity": 19.7,
+            "adaptive_capacity": 29.6,
+            "raw_value": 129223.0,
+            "indicators": [
+              "Female population in agriculture: 129,223",
+              "Women land ownership index: 0.219",
+              "Women dependent on agriculture index: 0.1"
+            ]
+          }
+        },
+        "composite_score": 65.1,
+        "risk_level": "High",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Kitui",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 38.3,
+            "vulnerability_score": 33.2,
+            "exposure": 0,
+            "sensitivity": 44.6,
+            "adaptive_capacity": 29.7,
+            "raw_value": 66.0,
+            "indicators": [
+              "Women collecting water: 66.0%",
+              "Households with safe water: 21.2%",
+              "Average collection time indicator: 55.3"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 32.5,
+            "vulnerability_score": 28.7,
+            "exposure": 0,
+            "sensitivity": 42.7,
+            "adaptive_capacity": 45.2,
+            "raw_value": 266848.0,
+            "indicators": [
+              "Women with energy access: 266,848",
+              "Households depending on firewood: 81.3%",
+              "Women employed in energy: 76"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 36.4,
+            "vulnerability_score": 30.7,
+            "exposure": 0,
+            "sensitivity": 34.6,
+            "adaptive_capacity": 25.5,
+            "raw_value": 220218.0,
+            "indicators": [
+              "Female population in agriculture: 220,218",
+              "Women land ownership index: 0.357",
+              "Women dependent on agriculture index: 0.215"
+            ]
+          }
+        },
+        "composite_score": 35.7,
+        "risk_level": "Low",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Kwale",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 50.7,
+            "vulnerability_score": 47.4,
+            "exposure": 35.6,
+            "sensitivity": 40.9,
+            "adaptive_capacity": 24.5,
+            "raw_value": 69.8,
+            "indicators": [
+              "Women collecting water: 69.8%",
+              "Households with safe water: 46.7%",
+              "Average collection time indicator: 23.6"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 40.0,
+            "vulnerability_score": 38.8,
+            "exposure": 35.6,
+            "sensitivity": 34.0,
+            "adaptive_capacity": 49.5,
+            "raw_value": 175071.0,
+            "indicators": [
+              "Women with energy access: 175,071",
+              "Households depending on firewood: 69.8%",
+              "Women employed in energy: 40"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 44.6,
+            "vulnerability_score": 41.2,
+            "exposure": 35.6,
+            "sensitivity": 24.0,
+            "adaptive_capacity": 25.8,
+            "raw_value": 142685.0,
+            "indicators": [
+              "Female population in agriculture: 142,685",
+              "Women land ownership index: 0.186",
+              "Women dependent on agriculture index: 0.068"
+            ]
+          }
+        },
+        "composite_score": 45.1,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Lalkipia",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 53.4,
+            "vulnerability_score": 51.6,
+            "exposure": 47.6,
+            "sensitivity": 43.2,
+            "adaptive_capacity": 30.5,
+            "raw_value": 73.9,
+            "indicators": [
+              "Women collecting water: 73.9%",
+              "Households with safe water: 69.7%",
+              "Average collection time indicator: 9.2"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 40.4,
+            "vulnerability_score": 40.6,
+            "exposure": 47.6,
+            "sensitivity": 31.9,
+            "adaptive_capacity": 58.4,
+            "raw_value": 119702.0,
+            "indicators": [
+              "Women with energy access: 119,702",
+              "Households depending on firewood: 58.0%",
+              "Women employed in energy: 82"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 43.2,
+            "vulnerability_score": 40.8,
+            "exposure": 47.6,
+            "sensitivity": 12.2,
+            "adaptive_capacity": 30.3,
+            "raw_value": 88753.0,
+            "indicators": [
+              "Female population in agriculture: 88,753",
+              "Women land ownership index: 0.089",
+              "Women dependent on agriculture index: 0.407"
+            ]
+          }
+        },
+        "composite_score": 45.7,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Lamu",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 50.6,
+            "vulnerability_score": 47.3,
+            "exposure": 35.6,
+            "sensitivity": 40.4,
+            "adaptive_capacity": 24.3,
+            "raw_value": 56.5,
+            "indicators": [
+              "Women collecting water: 56.5%",
+              "Households with safe water: 65.9%",
+              "Average collection time indicator: 18.9"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 34.6,
+            "vulnerability_score": 34.2,
+            "exposure": 35.6,
+            "sensitivity": 29.4,
+            "adaptive_capacity": 61.2,
+            "raw_value": 25579.0,
+            "indicators": [
+              "Women with energy access: 25,579",
+              "Households depending on firewood: 60.7%",
+              "Women employed in energy: 11"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 39.3,
+            "vulnerability_score": 35.5,
+            "exposure": 35.6,
+            "sensitivity": 6.8,
+            "adaptive_capacity": 24.5,
+            "raw_value": 18610.0,
+            "indicators": [
+              "Female population in agriculture: 18,610",
+              "Women land ownership index: 0.239",
+              "Women dependent on agriculture index: 0.282"
+            ]
+          }
+        },
+        "composite_score": 41.5,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Machakos",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 35.5,
+            "vulnerability_score": 30.3,
+            "exposure": 0,
+            "sensitivity": 36.2,
+            "adaptive_capacity": 29.6,
+            "raw_value": 54.3,
+            "indicators": [
+              "Women collecting water: 54.3%",
+              "Households with safe water: 68.1%",
+              "Average collection time indicator: 19.5"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 29.7,
+            "vulnerability_score": 26.6,
+            "exposure": 0,
+            "sensitivity": 43.7,
+            "adaptive_capacity": 54.7,
+            "raw_value": 335666.0,
+            "indicators": [
+              "Women with energy access: 335,666",
+              "Households depending on firewood: 53.4%",
+              "Women employed in energy: 464"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 34.7,
+            "vulnerability_score": 29.2,
+            "exposure": 0,
+            "sensitivity": 32.1,
+            "adaptive_capacity": 28.1,
+            "raw_value": 219029.0,
+            "indicators": [
+              "Female population in agriculture: 219,029",
+              "Women land ownership index: 0.397",
+              "Women dependent on agriculture index: 0.086"
+            ]
+          }
+        },
+        "composite_score": 33.3,
+        "risk_level": "Low",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Makueni",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 35.7,
+            "vulnerability_score": 30.5,
+            "exposure": 0,
+            "sensitivity": 37.1,
+            "adaptive_capacity": 30.1,
+            "raw_value": 53.0,
+            "indicators": [
+              "Women collecting water: 53.0%",
+              "Households with safe water: 46.0%",
+              "Average collection time indicator: 31.8"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 30.0,
+            "vulnerability_score": 26.5,
+            "exposure": 0,
+            "sensitivity": 39.8,
+            "adaptive_capacity": 49.7,
+            "raw_value": 239932.0,
+            "indicators": [
+              "Women with energy access: 239,932",
+              "Households depending on firewood: 76.1%",
+              "Women employed in energy: 75"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 33.3,
+            "vulnerability_score": 27.9,
+            "exposure": 0,
+            "sensitivity": 29.2,
+            "adaptive_capacity": 29.4,
+            "raw_value": 191363.0,
+            "indicators": [
+              "Female population in agriculture: 191,363",
+              "Women land ownership index: 0.231",
+              "Women dependent on agriculture index: 0.126"
+            ]
+          }
+        },
+        "composite_score": 33.0,
+        "risk_level": "Low",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Mandera",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 45.2,
+            "vulnerability_score": 41.6,
+            "exposure": 26.2,
+            "sensitivity": 37.7,
+            "adaptive_capacity": 28.4,
+            "raw_value": 54.2,
+            "indicators": [
+              "Women collecting water: 54.2%",
+              "Households with safe water: 54.0%",
+              "Average collection time indicator: 33.1"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 39.0,
+            "vulnerability_score": 37.0,
+            "exposure": 26.2,
+            "sensitivity": 38.2,
+            "adaptive_capacity": 47.5,
+            "raw_value": 148222.0,
+            "indicators": [
+              "Women with energy access: 148,222",
+              "Households depending on firewood: 86.4%",
+              "Women employed in energy: 8"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 41.5,
+            "vulnerability_score": 37.6,
+            "exposure": 26.2,
+            "sensitivity": 25.4,
+            "adaptive_capacity": 27.2,
+            "raw_value": 142827.0,
+            "indicators": [
+              "Female population in agriculture: 142,827",
+              "Women land ownership index: 0.017",
+              "Women dependent on agriculture index: 0.089"
+            ]
+          }
+        },
+        "composite_score": 41.9,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Marsabit",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 38.1,
+            "vulnerability_score": 33.2,
+            "exposure": 0,
+            "sensitivity": 46.3,
+            "adaptive_capacity": 31.9,
+            "raw_value": 64.6,
+            "indicators": [
+              "Women collecting water: 64.6%",
+              "Households with safe water: 41.3%",
+              "Average collection time indicator: 44.8"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 26.7,
+            "vulnerability_score": 23.6,
+            "exposure": 0,
+            "sensitivity": 35.7,
+            "adaptive_capacity": 55.6,
+            "raw_value": 79823.0,
+            "indicators": [
+              "Women with energy access: 79,823",
+              "Households depending on firewood: 84.9%",
+              "Women employed in energy: 11"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 27.4,
+            "vulnerability_score": 21.4,
+            "exposure": 0,
+            "sensitivity": 7.9,
+            "adaptive_capacity": 25.6,
+            "raw_value": 72598.0,
+            "indicators": [
+              "Female population in agriculture: 72,598",
+              "Women land ownership index: 0.023",
+              "Women dependent on agriculture index: 0.015"
+            ]
+          }
+        },
+        "composite_score": 30.7,
+        "risk_level": "Low",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Meru",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 38.2,
+            "vulnerability_score": 33.6,
+            "exposure": 0,
+            "sensitivity": 49.0,
+            "adaptive_capacity": 34.2,
+            "raw_value": 78.3,
+            "indicators": [
+              "Women collecting water: 78.3%",
+              "Households with safe water: 73.7%",
+              "Average collection time indicator: 10.9"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 31.1,
+            "vulnerability_score": 27.9,
+            "exposure": 0,
+            "sensitivity": 45.6,
+            "adaptive_capacity": 52.3,
+            "raw_value": 348665.0,
+            "indicators": [
+              "Women with energy access: 348,665",
+              "Households depending on firewood: 74.4%",
+              "Women employed in energy: 167"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 38.2,
+            "vulnerability_score": 33.9,
+            "exposure": 0,
+            "sensitivity": 52.7,
+            "adaptive_capacity": 38.2,
+            "raw_value": 270305.0,
+            "indicators": [
+              "Female population in agriculture: 270,305",
+              "Women land ownership index: 0.346",
+              "Women dependent on agriculture index: 0.501"
+            ]
+          }
+        },
+        "composite_score": 35.8,
+        "risk_level": "Low",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Migori",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "High",
+            "gender_hotspot_score": 72.8,
+            "vulnerability_score": 74.1,
+            "exposure": 100.0,
+            "sensitivity": 44.6,
+            "adaptive_capacity": 26.2,
+            "raw_value": 84.1,
+            "indicators": [
+              "Women collecting water: 84.1%",
+              "Households with safe water: 52.9%",
+              "Average collection time indicator: 12.3"
+            ]
+          },
+          "Energy": {
+            "risk_level": "High",
+            "gender_hotspot_score": 63.6,
+            "vulnerability_score": 66.6,
+            "exposure": 100.0,
+            "sensitivity": 38.8,
+            "adaptive_capacity": 48.0,
+            "raw_value": 217444.0,
+            "indicators": [
+              "Women with energy access: 217,444",
+              "Households depending on firewood: 71.4%",
+              "Women employed in energy: 78"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "High",
+            "gender_hotspot_score": 68.0,
+            "vulnerability_score": 69.5,
+            "exposure": 100.0,
+            "sensitivity": 34.8,
+            "adaptive_capacity": 30.9,
+            "raw_value": 173047.0,
+            "indicators": [
+              "Female population in agriculture: 173,047",
+              "Women land ownership index: 0.306",
+              "Women dependent on agriculture index: 0.423"
+            ]
+          }
+        },
+        "composite_score": 68.1,
+        "risk_level": "High",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Mombasa",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 48.9,
+            "vulnerability_score": 45.5,
+            "exposure": 35.6,
+            "sensitivity": 34.7,
+            "adaptive_capacity": 23.6,
+            "raw_value": 44.2,
+            "indicators": [
+              "Women collecting water: 44.2%",
+              "Households with safe water: 52.4%",
+              "Average collection time indicator: 4.0"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 34.0,
+            "vulnerability_score": 33.8,
+            "exposure": 35.6,
+            "sensitivity": 30.3,
+            "adaptive_capacity": 64.0,
+            "raw_value": 169347.0,
+            "indicators": [
+              "Women with energy access: 169,347",
+              "Households depending on firewood: 4.7%",
+              "Women employed in energy: 432"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 37.2,
+            "vulnerability_score": 33.6,
+            "exposure": 35.6,
+            "sensitivity": 3.4,
+            "adaptive_capacity": 27.4,
+            "raw_value": 12457.0,
+            "indicators": [
+              "Female population in agriculture: 12,457",
+              "Women land ownership index: 0.092",
+              "Women dependent on agriculture index: 0.018"
+            ]
+          }
+        },
+        "composite_score": 40.0,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Muranga",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 48.2,
+            "vulnerability_score": 45.3,
+            "exposure": 28.2,
+            "sensitivity": 48.8,
+            "adaptive_capacity": 32.3,
+            "raw_value": 66.3,
+            "indicators": [
+              "Women collecting water: 66.3%",
+              "Households with safe water: 80.6%",
+              "Average collection time indicator: 4.6"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 37.1,
+            "vulnerability_score": 36.2,
+            "exposure": 28.2,
+            "sensitivity": 41.7,
+            "adaptive_capacity": 58.6,
+            "raw_value": 281799.0,
+            "indicators": [
+              "Women with energy access: 281,799",
+              "Households depending on firewood: 74.8%",
+              "Women employed in energy: 186"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 42.7,
+            "vulnerability_score": 39.7,
+            "exposure": 28.2,
+            "sensitivity": 34.1,
+            "adaptive_capacity": 34.1,
+            "raw_value": 222588.0,
+            "indicators": [
+              "Female population in agriculture: 222,588",
+              "Women land ownership index: 0.225",
+              "Women dependent on agriculture index: 0.38"
+            ]
+          }
+        },
+        "composite_score": 42.7,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Nairobi",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 45.1,
+            "vulnerability_score": 40.8,
+            "exposure": 18.5,
+            "sensitivity": 41.2,
+            "adaptive_capacity": 24.3,
+            "raw_value": 62.1,
+            "indicators": [
+              "Women collecting water: 62.1%",
+              "Households with safe water: 98.6%",
+              "Average collection time indicator: 1.0"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 44.7,
+            "vulnerability_score": 44.3,
+            "exposure": 18.5,
+            "sensitivity": 79.6,
+            "adaptive_capacity": 64.0,
+            "raw_value": 775107.0,
+            "indicators": [
+              "Women with energy access: 775,107",
+              "Households depending on firewood: 0.7%",
+              "Women employed in energy: 2,978"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 31.9,
+            "vulnerability_score": 27.4,
+            "exposure": 18.5,
+            "sensitivity": 6.7,
+            "adaptive_capacity": 29.6,
+            "raw_value": 30260.0,
+            "indicators": [
+              "Female population in agriculture: 30,260",
+              "Women land ownership index: 0.139",
+              "Women dependent on agriculture index: 0.04"
+            ]
+          }
+        },
+        "composite_score": 40.6,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Nandi",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 50.9,
+            "vulnerability_score": 49.3,
+            "exposure": 47.6,
+            "sensitivity": 39.3,
+            "adaptive_capacity": 34.2,
+            "raw_value": 83.0,
+            "indicators": [
+              "Women collecting water: 83.0%",
+              "Households with safe water: 46.2%",
+              "Average collection time indicator: 6.6"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 50.1,
+            "vulnerability_score": 49.9,
+            "exposure": 47.6,
+            "sensitivity": 51.5,
+            "adaptive_capacity": 48.9,
+            "raw_value": 186769.0,
+            "indicators": [
+              "Women with energy access: 186,769",
+              "Households depending on firewood: 84.8%",
+              "Women employed in energy: 50"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 45.1,
+            "vulnerability_score": 43.4,
+            "exposure": 47.6,
+            "sensitivity": 23.7,
+            "adaptive_capacity": 36.0,
+            "raw_value": 279725.0,
+            "indicators": [
+              "Female population in agriculture: 279,725",
+              "Women land ownership index: 0.135",
+              "Women dependent on agriculture index: 0.26"
+            ]
+          }
+        },
+        "composite_score": 48.7,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Narok",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 52.4,
+            "vulnerability_score": 50.0,
+            "exposure": 47.6,
+            "sensitivity": 35.1,
+            "adaptive_capacity": 25.6,
+            "raw_value": 80.4,
+            "indicators": [
+              "Women collecting water: 80.4%",
+              "Households with safe water: 48.2%",
+              "Average collection time indicator: 27.8"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 45.9,
+            "vulnerability_score": 45.7,
+            "exposure": 47.6,
+            "sensitivity": 40.9,
+            "adaptive_capacity": 50.8,
+            "raw_value": 235482.0,
+            "indicators": [
+              "Women with energy access: 235,482",
+              "Households depending on firewood: 71.8%",
+              "Women employed in energy: 69"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 55.0,
+            "vulnerability_score": 52.6,
+            "exposure": 47.6,
+            "sensitivity": 42.4,
+            "adaptive_capacity": 25.1,
+            "raw_value": 156547.0,
+            "indicators": [
+              "Female population in agriculture: 156,547",
+              "Women land ownership index: 0.314",
+              "Women dependent on agriculture index: 0.527"
+            ]
+          }
+        },
+        "composite_score": 51.1,
+        "risk_level": "Medium",
+        "top_sector": "Agriculture"
+      },
+      {
+        "name": "Nyamira",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 58.4,
+            "vulnerability_score": 56.9,
+            "exposure": 47.6,
+            "sensitivity": 59.4,
+            "adaptive_capacity": 31.8,
+            "raw_value": 56.4,
+            "indicators": [
+              "Women collecting water: 56.4%",
+              "Households with safe water: 55.6%",
+              "Average collection time indicator: 29.1"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 45.8,
+            "vulnerability_score": 45.7,
+            "exposure": 47.6,
+            "sensitivity": 41.8,
+            "adaptive_capacity": 52.2,
+            "raw_value": 136025.0,
+            "indicators": [
+              "Women with energy access: 136,025",
+              "Households depending on firewood: 84.7%",
+              "Women employed in energy: 27"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 49.3,
+            "vulnerability_score": 47.0,
+            "exposure": 47.6,
+            "sensitivity": 28.7,
+            "adaptive_capacity": 28.4,
+            "raw_value": 202556.0,
+            "indicators": [
+              "Female population in agriculture: 202,556",
+              "Women land ownership index: 0.529",
+              "Women dependent on agriculture index: 0.342"
+            ]
+          }
+        },
+        "composite_score": 51.2,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Nyandarua",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "High",
+            "gender_hotspot_score": 70.0,
+            "vulnerability_score": 71.2,
+            "exposure": 100.0,
+            "sensitivity": 37.2,
+            "adaptive_capacity": 27.2,
+            "raw_value": 50.2,
+            "indicators": [
+              "Women collecting water: 50.2%",
+              "Households with safe water: 89.5%",
+              "Average collection time indicator: 4.2"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 59.7,
+            "vulnerability_score": 63.3,
+            "exposure": 100.0,
+            "sensitivity": 34.8,
+            "adaptive_capacity": 55.7,
+            "raw_value": 164841.0,
+            "indicators": [
+              "Women with energy access: 164,841",
+              "Households depending on firewood: 70.0%",
+              "Women employed in energy: 91"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Very High",
+            "gender_hotspot_score": 77.6,
+            "vulnerability_score": 79.4,
+            "exposure": 100.0,
+            "sensitivity": 62.8,
+            "adaptive_capacity": 30.2,
+            "raw_value": 118801.0,
+            "indicators": [
+              "Female population in agriculture: 118,801",
+              "Women land ownership index: 0.393",
+              "Women dependent on agriculture index: 0.669"
+            ]
+          }
+        },
+        "composite_score": 69.1,
+        "risk_level": "High",
+        "top_sector": "Agriculture"
+      },
+      {
+        "name": "Nyeri",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 45.1,
+            "vulnerability_score": 42.3,
+            "exposure": 28.2,
+            "sensitivity": 42.8,
+            "adaptive_capacity": 35.7,
+            "raw_value": 67.7,
+            "indicators": [
+              "Women collecting water: 67.7%",
+              "Households with safe water: 90.7%",
+              "Average collection time indicator: 1.2"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 35.9,
+            "vulnerability_score": 34.7,
+            "exposure": 28.2,
+            "sensitivity": 35.7,
+            "adaptive_capacity": 56.1,
+            "raw_value": 208248.0,
+            "indicators": [
+              "Women with energy access: 208,248",
+              "Households depending on firewood: 64.9%",
+              "Women employed in energy: 208"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 38.6,
+            "vulnerability_score": 35.6,
+            "exposure": 28.2,
+            "sensitivity": 23.6,
+            "adaptive_capacity": 35.8,
+            "raw_value": 134639.0,
+            "indicators": [
+              "Female population in agriculture: 134,639",
+              "Women land ownership index: 0.287",
+              "Women dependent on agriculture index: 0.589"
+            ]
+          }
+        },
+        "composite_score": 39.9,
+        "risk_level": "Low",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Samburu",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 47.1,
+            "vulnerability_score": 44.3,
+            "exposure": 28.2,
+            "sensitivity": 47.4,
+            "adaptive_capacity": 34.2,
+            "raw_value": 86.3,
+            "indicators": [
+              "Women collecting water: 86.3%",
+              "Households with safe water: 28.6%",
+              "Average collection time indicator: 60.4"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 34.7,
+            "vulnerability_score": 34.1,
+            "exposure": 28.2,
+            "sensitivity": 38.7,
+            "adaptive_capacity": 62.8,
+            "raw_value": 71927.0,
+            "indicators": [
+              "Women with energy access: 71,927",
+              "Households depending on firewood: 73.0%",
+              "Women employed in energy: 11"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 40.0,
+            "vulnerability_score": 37.0,
+            "exposure": 28.2,
+            "sensitivity": 28.6,
+            "adaptive_capacity": 36.9,
+            "raw_value": 146927.0,
+            "indicators": [
+              "Female population in agriculture: 146,927",
+              "Women land ownership index: 0.236",
+              "Women dependent on agriculture index: 0.257"
+            ]
+          }
+        },
+        "composite_score": 40.6,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Siaya",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 57.5,
+            "vulnerability_score": 56.0,
+            "exposure": 47.6,
+            "sensitivity": 56.9,
+            "adaptive_capacity": 32.0,
+            "raw_value": 57.4,
+            "indicators": [
+              "Women collecting water: 57.4%",
+              "Households with safe water: 48.5%",
+              "Average collection time indicator: 17.5"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 40.0,
+            "vulnerability_score": 39.9,
+            "exposure": 47.6,
+            "sensitivity": 27.5,
+            "adaptive_capacity": 55.0,
+            "raw_value": 228177.0,
+            "indicators": [
+              "Women with energy access: 228,177",
+              "Households depending on firewood: 72.5%",
+              "Women employed in energy: 72"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 47.0,
+            "vulnerability_score": 44.8,
+            "exposure": 47.6,
+            "sensitivity": 23.8,
+            "adaptive_capacity": 30.3,
+            "raw_value": 65545.0,
+            "indicators": [
+              "Female population in agriculture: 65,545",
+              "Women land ownership index: 0.182",
+              "Women dependent on agriculture index: 0.034"
+            ]
+          }
+        },
+        "composite_score": 48.2,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Taita-Taveta",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "High",
+            "gender_hotspot_score": 72.8,
+            "vulnerability_score": 73.9,
+            "exposure": 100.0,
+            "sensitivity": 42.9,
+            "adaptive_capacity": 24.3,
+            "raw_value": 60.2,
+            "indicators": [
+              "Women collecting water: 60.2%",
+              "Households with safe water: 68.3%",
+              "Average collection time indicator: 19.0"
+            ]
+          },
+          "Energy": {
+            "risk_level": "High",
+            "gender_hotspot_score": 62.4,
+            "vulnerability_score": 65.8,
+            "exposure": 100.0,
+            "sensitivity": 39.5,
+            "adaptive_capacity": 52.2,
+            "raw_value": 78009.0,
+            "indicators": [
+              "Women with energy access: 78,009",
+              "Households depending on firewood: 55.4%",
+              "Women employed in energy: 66"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "High",
+            "gender_hotspot_score": 63.9,
+            "vulnerability_score": 64.9,
+            "exposure": 100.0,
+            "sensitivity": 20.2,
+            "adaptive_capacity": 28.5,
+            "raw_value": 179248.0,
+            "indicators": [
+              "Female population in agriculture: 179,248",
+              "Women land ownership index: 0.39",
+              "Women dependent on agriculture index: 0.206"
+            ]
+          }
+        },
+        "composite_score": 66.4,
+        "risk_level": "High",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Tana River",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 48.8,
+            "vulnerability_score": 45.8,
+            "exposure": 35.6,
+            "sensitivity": 37.9,
+            "adaptive_capacity": 27.0,
+            "raw_value": 78.1,
+            "indicators": [
+              "Women collecting water: 78.1%",
+              "Households with safe water: 48.7%",
+              "Average collection time indicator: 32.2"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 35.5,
+            "vulnerability_score": 34.9,
+            "exposure": 35.6,
+            "sensitivity": 29.4,
+            "adaptive_capacity": 58.4,
+            "raw_value": 57808.0,
+            "indicators": [
+              "Women with energy access: 57,808",
+              "Households depending on firewood: 63.7%",
+              "Women employed in energy: 16"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 48.2,
+            "vulnerability_score": 45.2,
+            "exposure": 35.6,
+            "sensitivity": 36.9,
+            "adaptive_capacity": 28.0,
+            "raw_value": 53511.0,
+            "indicators": [
+              "Female population in agriculture: 53,511",
+              "Women land ownership index: 0.126",
+              "Women dependent on agriculture index: 0.201"
+            ]
+          }
+        },
+        "composite_score": 44.2,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Tharaka-Nithi",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 50.4,
+            "vulnerability_score": 47.9,
+            "exposure": 35.6,
+            "sensitivity": 47.5,
+            "adaptive_capacity": 32.1,
+            "raw_value": 69.1,
+            "indicators": [
+              "Women collecting water: 69.1%",
+              "Households with safe water: 61.1%",
+              "Average collection time indicator: 18.9"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 37.2,
+            "vulnerability_score": 36.4,
+            "exposure": 35.6,
+            "sensitivity": 30.8,
+            "adaptive_capacity": 54.7,
+            "raw_value": 98648.0,
+            "indicators": [
+              "Women with energy access: 98,648",
+              "Households depending on firewood: 82.3%",
+              "Women employed in energy: 33"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 41.0,
+            "vulnerability_score": 37.1,
+            "exposure": 35.6,
+            "sensitivity": 10.1,
+            "adaptive_capacity": 22.8,
+            "raw_value": 51193.0,
+            "indicators": [
+              "Female population in agriculture: 51,193",
+              "Women land ownership index: 0.188",
+              "Women dependent on agriculture index: 0.262"
+            ]
+          }
+        },
+        "composite_score": 42.9,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Trans Nzoia",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 39.8,
+            "vulnerability_score": 34.5,
+            "exposure": 0,
+            "sensitivity": 46.3,
+            "adaptive_capacity": 26.9,
+            "raw_value": 75.0,
+            "indicators": [
+              "Women collecting water: 75.0%",
+              "Households with safe water: 72.2%",
+              "Average collection time indicator: 15.3"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 26.2,
+            "vulnerability_score": 23.1,
+            "exposure": 0,
+            "sensitivity": 34.7,
+            "adaptive_capacity": 56.2,
+            "raw_value": 184122.0,
+            "indicators": [
+              "Women with energy access: 184,122",
+              "Households depending on firewood: 70.0%",
+              "Women employed in energy: 90"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 26.1,
+            "vulnerability_score": 20.4,
+            "exposure": 0,
+            "sensitivity": 8.8,
+            "adaptive_capacity": 30.6,
+            "raw_value": 80895.0,
+            "indicators": [
+              "Female population in agriculture: 80,895",
+              "Women land ownership index: 0.251",
+              "Women dependent on agriculture index: 0.423"
+            ]
+          }
+        },
+        "composite_score": 30.7,
+        "risk_level": "Low",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Turkana",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 54.2,
+            "vulnerability_score": 52.0,
+            "exposure": 47.6,
+            "sensitivity": 42.0,
+            "adaptive_capacity": 26.9,
+            "raw_value": 66.1,
+            "indicators": [
+              "Women collecting water: 66.1%",
+              "Households with safe water: 41.7%",
+              "Average collection time indicator: 42.6"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 44.3,
+            "vulnerability_score": 44.1,
+            "exposure": 47.6,
+            "sensitivity": 37.1,
+            "adaptive_capacity": 51.7,
+            "raw_value": 151361.0,
+            "indicators": [
+              "Women with energy access: 151,361",
+              "Households depending on firewood: 79.9%",
+              "Women employed in energy: 20"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 44.7,
+            "vulnerability_score": 42.2,
+            "exposure": 47.6,
+            "sensitivity": 15.2,
+            "adaptive_capacity": 28.7,
+            "raw_value": 142517.0,
+            "indicators": [
+              "Female population in agriculture: 142,517",
+              "Women land ownership index: 0.322",
+              "Women dependent on agriculture index: 0.194"
+            ]
+          }
+        },
+        "composite_score": 47.7,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Uasin Gishu",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 59.3,
+            "vulnerability_score": 57.9,
+            "exposure": 47.6,
+            "sensitivity": 62.6,
+            "adaptive_capacity": 32.3,
+            "raw_value": 76.9,
+            "indicators": [
+              "Women collecting water: 76.9%",
+              "Households with safe water: 79.0%",
+              "Average collection time indicator: 2.1"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 45.1,
+            "vulnerability_score": 44.2,
+            "exposure": 47.6,
+            "sensitivity": 32.3,
+            "adaptive_capacity": 44.5,
+            "raw_value": 218379.0,
+            "indicators": [
+              "Women with energy access: 218,379",
+              "Households depending on firewood: 46.6%",
+              "Women employed in energy: 269"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 48.4,
+            "vulnerability_score": 46.2,
+            "exposure": 47.6,
+            "sensitivity": 27.8,
+            "adaptive_capacity": 30.3,
+            "raw_value": 138335.0,
+            "indicators": [
+              "Female population in agriculture: 138,335",
+              "Women land ownership index: 0.266",
+              "Women dependent on agriculture index: 0.118"
+            ]
+          }
+        },
+        "composite_score": 50.9,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Vihiga",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 52.4,
+            "vulnerability_score": 50.4,
+            "exposure": 47.6,
+            "sensitivity": 39.9,
+            "adaptive_capacity": 30.3,
+            "raw_value": 64.4,
+            "indicators": [
+              "Women collecting water: 64.4%",
+              "Households with safe water: 75.2%",
+              "Average collection time indicator: 11.3"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 43.8,
+            "vulnerability_score": 43.9,
+            "exposure": 47.6,
+            "sensitivity": 38.7,
+            "adaptive_capacity": 54.9,
+            "raw_value": 135394.0,
+            "indicators": [
+              "Women with energy access: 135,394",
+              "Households depending on firewood: 83.9%",
+              "Women employed in energy: 33"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 54.9,
+            "vulnerability_score": 53.0,
+            "exposure": 47.6,
+            "sensitivity": 47.2,
+            "adaptive_capacity": 30.2,
+            "raw_value": 110805.0,
+            "indicators": [
+              "Female population in agriculture: 110,805",
+              "Women land ownership index: 0.282",
+              "Women dependent on agriculture index: 0.287"
+            ]
+          }
+        },
+        "composite_score": 50.4,
+        "risk_level": "Medium",
+        "top_sector": "Agriculture"
+      },
+      {
+        "name": "Wajir",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 57.2,
+            "vulnerability_score": 55.4,
+            "exposure": 57.8,
+            "sensitivity": 37.9,
+            "adaptive_capacity": 24.1,
+            "raw_value": 52.4,
+            "indicators": [
+              "Women collecting water: 52.4%",
+              "Households with safe water: 52.9%",
+              "Average collection time indicator: 35.0"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 46.2,
+            "vulnerability_score": 46.8,
+            "exposure": 57.8,
+            "sensitivity": 34.6,
+            "adaptive_capacity": 53.8,
+            "raw_value": 135216.0,
+            "indicators": [
+              "Women with energy access: 135,216",
+              "Households depending on firewood: 90.1%",
+              "Women employed in energy: 30"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 47.9,
+            "vulnerability_score": 46.2,
+            "exposure": 57.8,
+            "sensitivity": 16.4,
+            "adaptive_capacity": 30.5,
+            "raw_value": 130131.0,
+            "indicators": [
+              "Female population in agriculture: 130,131",
+              "Women land ownership index: 0.017",
+              "Women dependent on agriculture index: 0.094"
+            ]
+          }
+        },
+        "composite_score": 50.4,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "WEST Pokot",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 42.9,
+            "vulnerability_score": 39.9,
+            "exposure": 26.2,
+            "sensitivity": 37.6,
+            "adaptive_capacity": 35.2,
+            "raw_value": 75.3,
+            "indicators": [
+              "Women collecting water: 75.3%",
+              "Households with safe water: 38.1%",
+              "Average collection time indicator: 32.4"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Low",
+            "gender_hotspot_score": 39.3,
+            "vulnerability_score": 37.5,
+            "exposure": 26.2,
+            "sensitivity": 40.5,
+            "adaptive_capacity": 48.8,
+            "raw_value": 124705.0,
+            "indicators": [
+              "Women with energy access: 124,705",
+              "Households depending on firewood: 88.1%",
+              "Women employed in energy: 18"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 41.8,
+            "vulnerability_score": 37.6,
+            "exposure": 26.2,
+            "sensitivity": 23.5,
+            "adaptive_capacity": 24.4,
+            "raw_value": 117266.0,
+            "indicators": [
+              "Female population in agriculture: 117,266",
+              "Women land ownership index: 0.465",
+              "Women dependent on agriculture index: 0.304"
+            ]
+          }
+        },
+        "composite_score": 41.3,
+        "risk_level": "Medium",
+        "top_sector": "Water"
+      },
+      {
+        "name": "Nakuru",
+        "country": "Kenya",
+        "metrics": {
+          "Water": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 50.4,
+            "vulnerability_score": 48.2,
+            "exposure": 47.6,
+            "sensitivity": 32.0,
+            "adaptive_capacity": 28.4,
+            "raw_value": 69.2,
+            "indicators": [
+              "Women collecting water: 69.2%",
+              "Households with safe water: 72.6%",
+              "Average collection time indicator: 9.0"
+            ]
+          },
+          "Energy": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 44.0,
+            "vulnerability_score": 43.6,
+            "exposure": 47.6,
+            "sensitivity": 34.2,
+            "adaptive_capacity": 49.9,
+            "raw_value": 447100.0,
+            "indicators": [
+              "Women with energy access: 447,100",
+              "Households depending on firewood: 39.7%",
+              "Women employed in energy: 795"
+            ]
+          },
+          "Agriculture": {
+            "risk_level": "Medium",
+            "gender_hotspot_score": 51.1,
+            "vulnerability_score": 48.5,
+            "exposure": 47.6,
+            "sensitivity": 30.5,
+            "adaptive_capacity": 24.9,
+            "raw_value": 137227.0,
+            "indicators": [
+              "Female population in agriculture: 137,227",
+              "Women land ownership index: 0.234",
+              "Women dependent on agriculture index: 0.18"
+            ]
+          }
+        },
+        "composite_score": 48.5,
+        "risk_level": "Medium",
+        "top_sector": "Agriculture"
+      }
+    ],
+    "Uganda": [],
+    "Botswana": [],
+    "Ghana": []
+  }
+}

@@ -1,35 +1,35 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{% block title %}Gender Hotspot Maps{% endblock %}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}" />
-
-  <!-- Leaflet (only loaded on pages that need it via blocks if you want) -->
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}AGNES Gender Hotspot Map{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   {% block head_extra %}{% endblock %}
 </head>
 <body>
-  <!-- Top Nav -->
-  <header class="nav">
-    <div class="nav__brand">
-      <span class="brand__logo">AGNES</span>
-      <span class="brand__name">Gender Hotspot Maps</span>
-    </div>
-    <nav class="nav__links">
-      <a href="{{ url_for('home') }}" class="nav__link {% if page=='home' %}active{% endif %}">Home</a>
-      <a href="{{ url_for('map_page') }}" class="nav__link {% if page=='map' %}active{% endif %}">Map</a>
+  <header class="site-header">
+    <a class="brand" href="{{ url_for('home') }}" aria-label="Open Gender Hotspot Map home">
+      <span class="brand-mark">A</span>
+      <span>
+        <strong>AGNES</strong>
+        <small>Gender Hotspot Map</small>
+      </span>
+    </a>
+
+    <nav class="nav-links" aria-label="Main navigation">
+      <a href="{{ url_for('home') }}" class="{% if page == 'home' %}is-active{% endif %}">Overview</a>
+      <a href="{{ url_for('map_page') }}" class="{% if page == 'map' %}is-active{% endif %}">Interactive Map</a>
     </nav>
   </header>
 
-  <!-- Page Content -->
   <main>
     {% block content %}{% endblock %}
   </main>
 
-  <!-- Footer -->
-  <footer class="footer">
-    <p>&copy; {{ 2025 }} AGNES • Demo app for learning</p>
+  <footer class="site-footer">
+    <span>AGNES Gender Hotspot Map</span>
+    <span>Kenya, Uganda, Botswana, and Ghana study workspace</span>
   </footer>
 
   {% block body_scripts %}{% endblock %}
