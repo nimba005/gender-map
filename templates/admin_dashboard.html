@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard | AGNES Gender Hotspot Map{% endblock %}
+
+{% block content %}
+<section class="admin-hero">
+  <div>
+    <span class="eyebrow">Admin dashboard</span>
+    <h1>Update the hotspot map without changing code.</h1>
+    <p>Upload Excel data, write county reports, and attach PDFs. The public frontend reads these updates through the live data API.</p>
+  </div>
+  <form method="POST" action="{{ url_for('admin_logout') }}">
+    <button class="button button-secondary" type="submit">Logout</button>
+  </form>
+</section>
+
+<section class="admin-grid">
+  <article class="admin-card">
+    <span class="card-kicker">Excel data</span>
+    <h2>Upload sector workbook</h2>
+    <p>Use the same workbook structure as the Kenya water, energy, and agriculture files. Rows are matched by District, County, Region, or Place.</p>
+    <form method="POST" action="{{ url_for('admin_upload_excel') }}" enctype="multipart/form-data" class="admin-form">
+      <label>
+        <span>Country</span>
+        <select name="country" required>
+          {% for country in countries %}
+            <option value="{{ country }}">{{ country }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        <span>Sector</span>
+        <select name="sector" required>
+          {% for sector in sectors %}
+            <option value="{{ sector }}">{{ sector }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        <span>Excel file</span>
+        <input type="file" name="excel_file" accept=".xlsx" required>
+      </label>
+      <button class="button button-primary" type="submit">Upload Excel</button>
+    </form>
+  </article>
+
+  <article class="admin-card">
+    <span class="card-kicker">County narrative</span>
+    <h2>Add or update full report</h2>
+    <form method="POST" action="{{ url_for('admin_save_report') }}" class="admin-form">
+      <div class="form-pair">
+        <label>
+          <span>Country</span>
+          <select name="country" required>
+            {% for country in countries %}
+              <option value="{{ country }}">{{ country }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          <span>Sector</span>
+          <select name="sector">
+            <option value="">All sectors</option>
+            {% for sector in sectors %}
+              <option value="{{ sector }}">{{ sector }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <label>
+        <span>County / district / region</span>
+        <input type="text" name="place_name" placeholder="e.g. Baringo" required>
+      </label>
+      <label>
+        <span>Report title</span>
+        <input type="text" name="title" placeholder="e.g. Baringo Water Gender Hotspot Report" required>
+      </label>
+      <label>
+        <span>Overview</span>
+        <textarea name="overview" rows="4" placeholder="Plain-language summary for readers"></textarea>
+      </label>
+      <label>
+        <span>Key findings</span>
+        <textarea name="findings" rows="5" placeholder="One finding per line or short paragraphs"></textarea>
+      </label>
+      <label>
+        <span>Recommendations</span>
+        <textarea name="recommendations" rows="5" placeholder="Recommended actions, policies, or programming responses"></textarea>
+      </label>
+      <label>
+        <span>Methodology / notes</span>
+        <textarea name="methodology" rows="4" placeholder="Data source, scoring notes, assumptions"></textarea>
+      </label>
+      <button class="button button-primary" type="submit">Publish report</button>
+    </form>
+  </article>
+
+  <article class="admin-card">
+    <span class="card-kicker">PDF library</span>
+    <h2>Attach county document</h2>
+    <p>PDFs appear inside the public full county report when users open the overview.</p>
+    <form method="POST" action="{{ url_for('admin_upload_document') }}" enctype="multipart/form-data" class="admin-form">
+      <div class="form-pair">
+        <label>
+          <span>Country</span>
+          <select name="country" required>
+            {% for country in countries %}
+              <option value="{{ country }}">{{ country }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          <span>Sector</span>
+          <select name="sector">
+            <option value="">All sectors</option>
+            {% for sector in sectors %}
+              <option value="{{ sector }}">{{ sector }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      <label>
+        <span>County / district / region</span>
+        <input type="text" name="place_name" placeholder="e.g. Baringo" required>
+      </label>
+      <label>
+        <span>Document title</span>
+        <input type="text" name="title" required>
+      </label>
+      <label>
+        <span>PDF file</span>
+        <input type="file" name="pdf_file" accept="application/pdf" required>
+      </label>
+      <button class="button button-primary" type="submit">Upload PDF</button>
+    </form>
+  </article>
+
+  <article class="admin-card">
+    <span class="card-kicker">Current uploads</span>
+    <h2>Recent activity</h2>
+    <div class="admin-list">
+      <h3>Metric records</h3>
+      {% for item in metrics %}
+        <p><strong>{{ item.country }}</strong> {{ item.sector }}: {{ item.total }} records</p>
+      {% else %}
+        <p>No admin Excel uploads yet.</p>
+      {% endfor %}
+      <h3>Reports</h3>
+      {% for report in reports %}
+        <p><strong>{{ report.place_name }}</strong> {{ report.title }}</p>
+      {% else %}
+        <p>No county reports yet.</p>
+      {% endfor %}
+      <h3>Documents</h3>
+      {% for doc in docs %}
+        <p><strong>{{ doc.place_name }}</strong> {{ doc.title }}</p>
+      {% else %}
+        <p>No PDFs uploaded yet.</p>
+      {% endfor %}
+    </div>
+  </article>
+</section>
+{% endblock %}

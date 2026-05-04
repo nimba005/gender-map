@@ -273,6 +273,74 @@ function sectorReportRows(record) {
   }).join("");
 }
 
+function textBlock(title, text) {
+  const value = String(text || "").trim();
+  if (!value) return "";
+  const paragraphs = value
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => `<p>${escapeHtml(line)}</p>`)
+    .join("");
+  return `
+    <article class="report-text-block">
+      <h3>${escapeHtml(title)}</h3>
+      ${paragraphs}
+    </article>
+  `;
+}
+
+function adminReportSections(record) {
+  const reports = record.reports || [];
+  if (!reports.length) {
+    return `
+      <article class="report-text-block">
+        <h3>Admin narrative</h3>
+        <p>No admin-written narrative has been added for this county yet. Use the admin dashboard to publish context, findings, recommendations, and methodology notes.</p>
+      </article>
+    `;
+  }
+
+  return reports.map((report) => `
+    <article class="report-narrative">
+      <div>
+        <span class="card-kicker">${escapeHtml(report.sector || "All sectors")}</span>
+        <h3>${escapeHtml(report.title)}</h3>
+      </div>
+      ${textBlock("Overview", report.overview)}
+      ${textBlock("Key findings", report.findings)}
+      ${textBlock("Recommendations", report.recommendations)}
+      ${textBlock("Methodology and notes", report.methodology)}
+    </article>
+  `).join("");
+}
+
+function documentSections(record) {
+  const docs = record.documents || [];
+  if (!docs.length) {
+    return `
+      <article class="document-empty">
+        <h3>Documents</h3>
+        <p>No PDFs have been attached yet. Admins can upload county documents, evidence notes, and full reports from the admin dashboard.</p>
+      </article>
+    `;
+  }
+
+  return `
+    <article class="document-list">
+      <h3>Attached PDF documents</h3>
+      <div>
+        ${docs.map((doc) => `
+          <a href="${escapeHtml(doc.url)}" target="_blank" rel="noopener">
+            <strong>${escapeHtml(doc.title)}</strong>
+            <span>${escapeHtml(doc.sector || "All sectors")} - ${escapeHtml(doc.original_filename || "PDF document")}</span>
+          </a>
+        `).join("")}
+      </div>
+    </article>
+  `;
+}
+
 function selectRecord(recordName, shouldScroll = true) {
   const record = recordByCounty(recordName);
   if (!record) return;
@@ -330,6 +398,10 @@ function renderFullReport(record = selectedRecord) {
       <article><span>Composite risk</span><strong>${escapeHtml(record.risk_level)}</strong></article>
       <article><span>Highest pressure sector</span><strong>${escapeHtml(record.top_sector || "N/A")}</strong></article>
       <article><span>Selected sector</span><strong>${escapeHtml(state.sector)}</strong></article>
+    </div>
+    <div class="report-reading-grid">
+      ${adminReportSections(record)}
+      ${documentSections(record)}
     </div>
     <div class="report-sector-grid">
       ${sectorReportRows(record)}
@@ -508,7 +580,7 @@ function applyState() {
 async function init() {
   initMap();
   const [data, geojson] = await Promise.all([
-    fetch("/data/hotspot_data.json").then((res) => res.json()),
+    fetch("/api/hotspot-data").then((res) => res.json()),
     fetch("/data/kenya_districts.geojson").then((res) => res.json())
   ]);
   hotspotData = data;

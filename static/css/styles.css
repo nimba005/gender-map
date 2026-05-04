@@ -827,6 +827,204 @@ main {
   color: var(--muted);
 }
 
+.flash-stack {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.flash {
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #fff;
+  color: var(--ink);
+}
+
+.flash.success {
+  border-color: rgba(23, 107, 77, 0.28);
+  background: #edf8f1;
+}
+
+.flash.error {
+  border-color: rgba(185, 28, 28, 0.25);
+  background: #fff1f1;
+}
+
+.auth-shell {
+  min-height: 72vh;
+  display: grid;
+  place-items: center;
+}
+
+.auth-card,
+.admin-card,
+.admin-hero {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.auth-card {
+  width: min(520px, 100%);
+  display: grid;
+  gap: 16px;
+  padding: 28px;
+}
+
+.auth-card h1,
+.admin-hero h1 {
+  margin: 8px 0;
+  letter-spacing: 0;
+}
+
+.auth-card p,
+.admin-hero p,
+.admin-card p,
+.admin-list {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.auth-card label,
+.admin-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.auth-card label span,
+.admin-form label span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.auth-card input,
+.admin-form input,
+.admin-form select,
+.admin-form textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+}
+
+.admin-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: start;
+  padding: 24px;
+  margin-bottom: 18px;
+}
+
+.admin-hero .button-secondary {
+  color: var(--brand-2);
+  border-color: rgba(23, 107, 77, 0.25);
+  background: var(--surface-soft);
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.admin-card {
+  padding: 22px;
+}
+
+.admin-card h2 {
+  margin: 8px 0 8px;
+  letter-spacing: 0;
+}
+
+.admin-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.form-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.admin-list h3 {
+  margin: 18px 0 8px;
+  color: var(--ink);
+}
+
+.admin-list p {
+  margin: 6px 0;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.report-reading-grid {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.report-narrative,
+.report-text-block,
+.document-list,
+.document-empty {
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.report-narrative {
+  display: grid;
+  gap: 12px;
+}
+
+.report-text-block h3,
+.document-list h3,
+.document-empty h3 {
+  margin: 0 0 8px;
+  letter-spacing: 0;
+}
+
+.report-text-block p,
+.document-empty p {
+  margin: 0 0 8px;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.document-list > div {
+  display: grid;
+  gap: 10px;
+}
+
+.document-list a {
+  display: grid;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 8px;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--surface-soft);
+}
+
+.document-list a:hover {
+  outline: 3px solid rgba(23, 107, 77, 0.12);
+}
+
+.document-list span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
 @media (max-width: 1180px) {
   .map-shell {
     grid-template-columns: 1fr;
@@ -864,7 +1062,9 @@ main {
   .section-grid,
   .analytics-grid,
   .county-overview,
-  .full-report-head {
+  .full-report-head,
+  .admin-grid,
+  .admin-hero {
     grid-template-columns: 1fr;
     flex-direction: column;
   }
@@ -873,7 +1073,8 @@ main {
   .record-grid,
   .overview-grid,
   .report-summary,
-  .report-sector-grid {
+  .report-sector-grid,
+  .form-pair {
     grid-template-columns: 1fr;
   }
 

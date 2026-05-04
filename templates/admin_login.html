@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Admin Login | AGNES Gender Hotspot Map{% endblock %}
+
+{% block content %}
+<section class="auth-shell">
+  <form class="auth-card" method="POST" action="{{ url_for('admin_login') }}">
+    <span class="eyebrow">Admin access</span>
+    <h1>Manage hotspot data</h1>
+    <p>Sign in to upload Excel data, add county reports, and attach PDF documents that appear on the public map.</p>
+
+    <label>
+      <span>Username</span>
+      <input type="text" name="username" autocomplete="username" required>
+    </label>
+
+    <label>
+      <span>Password</span>
+      <input type="password" name="password" autocomplete="current-password" required>
+    </label>
+
+    <button class="button button-primary" type="submit">Sign in</button>
+  </form>
+</section>
+{% endblock %}

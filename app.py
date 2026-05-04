@@ -1,15 +1,376 @@
+import json
 import os
+import sqlite3
+import zipfile
+import xml.etree.ElementTree as ET
+from datetime import datetime
+from functools import wraps
 from pathlib import Path
 
 from dotenv import load_dotenv
-from flask import Flask, render_template, send_from_directory
+from flask import (
+    Flask,
+    flash,
+    jsonify,
+    redirect,
+    render_template,
+    request,
+    send_from_directory,
+    session,
+    url_for,
+)
+from werkzeug.security import check_password_hash, generate_password_hash
+from werkzeug.utils import secure_filename
 
 
 load_dotenv()
 
 app = Flask(__name__)
+app.secret_key = os.getenv("SECRET_KEY", "dev-gender-hotspot-secret")
+
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
+INSTANCE_DIR = BASE_DIR / "instance"
+UPLOAD_DIR = INSTANCE_DIR / "uploads"
+PDF_DIR = UPLOAD_DIR / "documents"
+EXCEL_DIR = UPLOAD_DIR / "excels"
+DB_PATH = INSTANCE_DIR / "gender_hotspots.db"
+
+for folder in (INSTANCE_DIR, PDF_DIR, EXCEL_DIR):
+    folder.mkdir(parents=True, exist_ok=True)
+
+NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
+COUNTRY_META = {
+    "Kenya": {"center": [-0.0236, 37.9062], "zoom": 6, "admin_label": "Counties", "geometry_file": "kenya_districts.geojson"},
+    "Uganda": {"center": [1.3733, 32.2903], "zoom": 6, "admin_label": "Districts", "geometry_file": None},
+    "Botswana": {"center": [-22.3285, 24.6849], "zoom": 6, "admin_label": "Districts", "geometry_file": None},
+    "Ghana": {"center": [7.9465, -1.0232], "zoom": 6, "admin_label": "Regions", "geometry_file": None},
+}
+SECTORS = ["Water", "Energy", "Agriculture"]
+
+
+def db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def init_db():
+    with db() as conn:
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS admins (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                created_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS uploaded_metrics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                country TEXT NOT NULL,
+                place_name TEXT NOT NULL,
+                sector TEXT NOT NULL,
+                risk_level TEXT,
+                gender_hotspot_score REAL,
+                vulnerability_score REAL,
+                exposure REAL,
+                sensitivity REAL,
+                adaptive_capacity REAL,
+                raw_value REAL,
+                indicators_json TEXT DEFAULT '[]',
+                source_filename TEXT,
+                updated_at TEXT NOT NULL,
+                UNIQUE(country, place_name, sector)
+            );
+            CREATE TABLE IF NOT EXISTS county_reports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                country TEXT NOT NULL,
+                place_name TEXT NOT NULL,
+                sector TEXT,
+                title TEXT NOT NULL,
+                overview TEXT,
+                findings TEXT,
+                recommendations TEXT,
+                methodology TEXT,
+                updated_at TEXT NOT NULL,
+                UNIQUE(country, place_name, sector)
+            );
+            CREATE TABLE IF NOT EXISTS county_documents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                country TEXT NOT NULL,
+                place_name TEXT NOT NULL,
+                sector TEXT,
+                title TEXT NOT NULL,
+                filename TEXT NOT NULL,
+                original_filename TEXT NOT NULL,
+                uploaded_at TEXT NOT NULL
+            );
+            """
+        )
+        count = conn.execute("SELECT COUNT(*) FROM admins").fetchone()[0]
+        if count == 0:
+            username = os.getenv("ADMIN_USERNAME", "admin")
+            password = os.getenv("ADMIN_PASSWORD", "Admin@12345")
+            conn.execute(
+                "INSERT INTO admins (username, password_hash, created_at) VALUES (?, ?, ?)",
+                (username, generate_password_hash(password), datetime.utcnow().isoformat()),
+            )
+
+
+def admin_required(view):
+    @wraps(view)
+    def wrapper(*args, **kwargs):
+        if not session.get("admin_id"):
+            flash("Please sign in as admin.", "error")
+            return redirect(url_for("admin_login"))
+        return view(*args, **kwargs)
+
+    return wrapper
+
+
+def col_name(ref):
+    return "".join(ch for ch in ref if ch.isalpha())
+
+
+def col_index(name):
+    value = 0
+    for ch in name:
+        value = value * 26 + (ord(ch.upper()) - 64)
+    return value - 1
+
+
+def shared_strings(zf):
+    try:
+        root = ET.fromstring(zf.read("xl/sharedStrings.xml"))
+    except KeyError:
+        return []
+    return ["".join(t.text or "" for t in si.findall(".//m:t", NS)) for si in root.findall("m:si", NS)]
+
+
+def read_xlsx_sheet(path, sheet_xml="sheet1.xml"):
+    with zipfile.ZipFile(path) as zf:
+        strings = shared_strings(zf)
+        root = ET.fromstring(zf.read(f"xl/worksheets/{sheet_xml}"))
+
+    rows = []
+    for row in root.findall(".//m:sheetData/m:row", NS):
+        values = []
+        for cell in row.findall("m:c", NS):
+            idx = col_index(col_name(cell.attrib.get("r", "A")))
+            while len(values) < idx:
+                values.append("")
+            raw = cell.find("m:v", NS)
+            value = "" if raw is None else raw.text or ""
+            if cell.attrib.get("t") == "s" and value.isdigit() and int(value) < len(strings):
+                value = strings[int(value)]
+            values.append(value)
+        rows.append(values)
+
+    if not rows:
+        return []
+    headers = [str(value).strip() for value in rows[0]]
+    return [{header: row[idx] if idx < len(row) else "" for idx, header in enumerate(headers) if header} for row in rows[1:]]
+
+
+def as_float(value):
+    if value in ("", None):
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def rounded(value, digits=1):
+    return None if value is None else round(value, digits)
+
+
+def score_risk(score):
+    if score is None:
+        return "No data"
+    if score >= 75:
+        return "Very High"
+    if score >= 60:
+        return "High"
+    if score >= 40:
+        return "Medium"
+    if score >= 20:
+        return "Low"
+    return "Very Low"
+
+
+def raw_metric(sector, row):
+    if sector == "Water":
+        return as_float(row.get("Per_hh_women_water_collection"))
+    if sector == "Energy":
+        return as_float(row.get("Women_access_energy"))
+    if sector == "Agriculture":
+        return as_float(row.get("Female_Pop_Ag"))
+    return as_float(row.get("raw_value") or row.get("Raw Value"))
+
+
+def indicators_for(sector, row):
+    if sector == "Water":
+        return [
+            f"Women collecting water: {rounded(as_float(row.get('Per_hh_women_water_collection')), 1)}%",
+            f"Households with safe water: {rounded(as_float(row.get('Per_hh_access_safe_water')), 1)}%",
+            f"Water collection time indicator: {rounded(as_float(row.get('Per_hh_water_collection_time')), 1)}",
+        ]
+    if sector == "Energy":
+        return [
+            f"Women with energy access: {int(as_float(row.get('Women_access_energy')) or 0):,}",
+            f"Households depending on firewood: {rounded(as_float(row.get('Per_HH_Dep_Firewhood')), 1)}%",
+            f"Women employed in energy: {int(as_float(row.get('Women_employ_energy')) or 0):,}",
+        ]
+    if sector == "Agriculture":
+        return [
+            f"Female population in agriculture: {int(as_float(row.get('Female_Pop_Ag')) or 0):,}",
+            f"Women land ownership index: {rounded(as_float(row.get('Women_Land_Own')), 3)}",
+            f"Women dependent on agriculture index: {rounded(as_float(row.get('Women_Depedent_Ag')), 3)}",
+        ]
+    return []
+
+
+def process_excel_upload(country, sector, path, source_filename):
+    combine_rows = read_xlsx_sheet(path, "sheet1.xml")
+    weighted_rows = []
+    try:
+        weighted_rows = read_xlsx_sheet(path, "sheet2.xml")
+    except KeyError:
+        weighted_rows = []
+
+    saved = 0
+    with db() as conn:
+        for index, row in enumerate(combine_rows):
+            place = str(row.get("District") or row.get("County") or row.get("Region") or row.get("Place") or "").strip()
+            if not place:
+                continue
+            weighted = weighted_rows[index] if index < len(weighted_rows) else {}
+            exposure = as_float(weighted.get("Normalize value_Exposure") or row.get("Normalize value_Exposure") or row.get("exposure"))
+            sensitivity = as_float(weighted.get("Sensitivity") or row.get("Sensitivity") or row.get("sensitivity"))
+            adaptive = as_float(weighted.get("Adaptive_Capacity") or row.get("Adaptive_Capacity") or row.get("adaptive_capacity"))
+            components = [v for v in (exposure, sensitivity, 1 - adaptive if adaptive is not None else None) if v is not None]
+            hotspot = ((sum(components) / len(components)) * 100) if components else as_float(row.get("gender_hotspot_score"))
+            vulnerability = ((exposure or 0) * 0.4 + (sensitivity or 0) * 0.35 + (1 - (adaptive or 0)) * 0.25) * 100
+            indicators = indicators_for(sector, row)
+            conn.execute(
+                """
+                INSERT INTO uploaded_metrics (
+                    country, place_name, sector, risk_level, gender_hotspot_score, vulnerability_score,
+                    exposure, sensitivity, adaptive_capacity, raw_value, indicators_json, source_filename, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(country, place_name, sector) DO UPDATE SET
+                    risk_level=excluded.risk_level,
+                    gender_hotspot_score=excluded.gender_hotspot_score,
+                    vulnerability_score=excluded.vulnerability_score,
+                    exposure=excluded.exposure,
+                    sensitivity=excluded.sensitivity,
+                    adaptive_capacity=excluded.adaptive_capacity,
+                    raw_value=excluded.raw_value,
+                    indicators_json=excluded.indicators_json,
+                    source_filename=excluded.source_filename,
+                    updated_at=excluded.updated_at
+                """,
+                (
+                    country,
+                    place,
+                    sector,
+                    score_risk(hotspot),
+                    rounded(hotspot),
+                    rounded(vulnerability),
+                    rounded((exposure or 0) * 100),
+                    rounded((sensitivity or 0) * 100),
+                    rounded((adaptive or 0) * 100),
+                    rounded(raw_metric(sector, row), 2),
+                    json.dumps(indicators),
+                    source_filename,
+                    datetime.utcnow().isoformat(),
+                ),
+            )
+            saved += 1
+    return saved
+
+
+def base_hotspot_payload():
+    with open(DATA_DIR / "hotspot_data.json", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+def recompute_record(record):
+    scores = [
+        metrics.get("gender_hotspot_score")
+        for metrics in (record.get("metrics") or {}).values()
+        if metrics.get("gender_hotspot_score") is not None
+    ]
+    record["composite_score"] = rounded(sum(scores) / len(scores)) if scores else None
+    record["risk_level"] = score_risk(record["composite_score"])
+    record["top_sector"] = max(record["metrics"], key=lambda key: record["metrics"][key].get("gender_hotspot_score") or -1) if scores else None
+    return record
+
+
+def merged_hotspot_payload():
+    payload = base_hotspot_payload()
+    records = payload.setdefault("records", {})
+    for country in COUNTRY_META:
+        records.setdefault(country, [])
+
+    with db() as conn:
+        for row in conn.execute("SELECT * FROM uploaded_metrics ORDER BY place_name"):
+            country = row["country"]
+            place = row["place_name"]
+            country_records = records.setdefault(country, [])
+            record = next((item for item in country_records if item["name"].lower() == place.lower()), None)
+            if not record:
+                record = {"name": place, "country": country, "metrics": {sector: {} for sector in SECTORS}}
+                country_records.append(record)
+            record.setdefault("metrics", {})
+            record["metrics"][row["sector"]] = {
+                "risk_level": row["risk_level"],
+                "gender_hotspot_score": row["gender_hotspot_score"],
+                "vulnerability_score": row["vulnerability_score"],
+                "exposure": row["exposure"],
+                "sensitivity": row["sensitivity"],
+                "adaptive_capacity": row["adaptive_capacity"],
+                "raw_value": row["raw_value"],
+                "indicators": json.loads(row["indicators_json"] or "[]"),
+                "source_filename": row["source_filename"],
+            }
+            recompute_record(record)
+
+        report_map = {}
+        for row in conn.execute("SELECT * FROM county_reports ORDER BY updated_at DESC"):
+            report_map.setdefault((row["country"], row["place_name"]), []).append(dict(row))
+        doc_map = {}
+        for row in conn.execute("SELECT * FROM county_documents ORDER BY uploaded_at DESC"):
+            item = dict(row)
+            item["url"] = url_for("uploaded_document", filename=item["filename"])
+            doc_map.setdefault((row["country"], row["place_name"]), []).append(item)
+
+    for country_records in records.values():
+        for record in country_records:
+            key = (record["country"], record["name"])
+            record["reports"] = report_map.get(key, [])
+            record["documents"] = doc_map.get(key, [])
+
+    countries = []
+    for country, meta in COUNTRY_META.items():
+        country_records = records.get(country, [])
+        scores = [item.get("composite_score") for item in country_records if item.get("composite_score") is not None]
+        average = rounded(sum(scores) / len(scores)) if scores else None
+        highest = max(country_records, key=lambda item: item.get("composite_score") or -1) if scores else None
+        countries.append({
+            **meta,
+            "country": country,
+            "record_count": len(country_records),
+            "average_score": average,
+            "risk_level": score_risk(average) if scores else "Data pending",
+            "highest_hotspot": highest["name"] if highest else None,
+            "top_sector": highest.get("top_sector") if highest else None,
+            "status": "Data loaded" if country_records else "Country study layer",
+            "study_note": "Admin-managed data is available for this country." if country_records else "Upload Excel data from the admin dashboard to activate detailed records.",
+        })
+    payload["countries"] = countries
+    return payload
 
 
 @app.route("/")
@@ -19,17 +380,137 @@ def home():
 
 @app.route("/map")
 def map_page():
-    return render_template(
-        "map.html",
-        page="map",
-        google_maps_api_key=os.getenv("GOOGLE_MAPS_API_KEY", ""),
-    )
+    return render_template("map.html", page="map", google_maps_api_key=os.getenv("GOOGLE_MAPS_API_KEY", ""))
+
+
+@app.route("/api/hotspot-data")
+def hotspot_data_api():
+    return jsonify(merged_hotspot_payload())
 
 
 @app.route("/data/<path:filename>")
 def data_files(filename):
     return send_from_directory(DATA_DIR, filename)
 
+
+@app.route("/uploads/documents/<path:filename>")
+def uploaded_document(filename):
+    return send_from_directory(PDF_DIR, filename)
+
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    if request.method == "POST":
+        username = (request.form.get("username") or "").strip()
+        password = request.form.get("password") or ""
+        with db() as conn:
+            admin = conn.execute("SELECT * FROM admins WHERE username = ?", (username,)).fetchone()
+        if admin and check_password_hash(admin["password_hash"], password):
+            session["admin_id"] = admin["id"]
+            session["admin_username"] = admin["username"]
+            return redirect(url_for("admin_dashboard"))
+        flash("Invalid admin credentials.", "error")
+    return render_template("admin_login.html", page="admin")
+
+
+@app.route("/admin/logout", methods=["POST"])
+def admin_logout():
+    session.clear()
+    return redirect(url_for("admin_login"))
+
+
+@app.route("/admin")
+@admin_required
+def admin_dashboard():
+    with db() as conn:
+        reports = conn.execute("SELECT * FROM county_reports ORDER BY updated_at DESC LIMIT 12").fetchall()
+        docs = conn.execute("SELECT * FROM county_documents ORDER BY uploaded_at DESC LIMIT 12").fetchall()
+        metrics = conn.execute("SELECT country, sector, COUNT(*) AS total FROM uploaded_metrics GROUP BY country, sector").fetchall()
+    return render_template("admin_dashboard.html", page="admin", countries=COUNTRY_META.keys(), sectors=SECTORS, reports=reports, docs=docs, metrics=metrics)
+
+
+@app.route("/admin/upload-excel", methods=["POST"])
+@admin_required
+def admin_upload_excel():
+    country = request.form.get("country")
+    sector = request.form.get("sector")
+    file = request.files.get("excel_file")
+    if country not in COUNTRY_META or sector not in SECTORS or not file or not file.filename.lower().endswith(".xlsx"):
+        flash("Choose a country, sector, and .xlsx file.", "error")
+        return redirect(url_for("admin_dashboard"))
+    filename = f"{country}_{sector}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{secure_filename(file.filename)}"
+    path = EXCEL_DIR / filename
+    file.save(path)
+    try:
+        saved = process_excel_upload(country, sector, path, file.filename)
+        flash(f"Excel uploaded and {saved} {country} {sector} records updated.", "success")
+    except Exception as exc:
+        flash(f"Could not process Excel file: {exc}", "error")
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/admin/reports", methods=["POST"])
+@admin_required
+def admin_save_report():
+    country = request.form.get("country")
+    place = (request.form.get("place_name") or "").strip()
+    sector = request.form.get("sector") or ""
+    title = (request.form.get("title") or "").strip()
+    if country not in COUNTRY_META or not place or not title:
+        flash("Country, county/region, and report title are required.", "error")
+        return redirect(url_for("admin_dashboard"))
+    with db() as conn:
+        conn.execute(
+            """
+            INSERT INTO county_reports (country, place_name, sector, title, overview, findings, recommendations, methodology, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(country, place_name, sector) DO UPDATE SET
+                title=excluded.title,
+                overview=excluded.overview,
+                findings=excluded.findings,
+                recommendations=excluded.recommendations,
+                methodology=excluded.methodology,
+                updated_at=excluded.updated_at
+            """,
+            (
+                country,
+                place,
+                sector,
+                title,
+                request.form.get("overview"),
+                request.form.get("findings"),
+                request.form.get("recommendations"),
+                request.form.get("methodology"),
+                datetime.utcnow().isoformat(),
+            ),
+        )
+    flash("County report saved and published to the frontend.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+
+@app.route("/admin/documents", methods=["POST"])
+@admin_required
+def admin_upload_document():
+    country = request.form.get("country")
+    place = (request.form.get("place_name") or "").strip()
+    sector = request.form.get("sector") or ""
+    title = (request.form.get("title") or "").strip()
+    file = request.files.get("pdf_file")
+    if country not in COUNTRY_META or not place or not title or not file or not file.filename.lower().endswith(".pdf"):
+        flash("Country, county/region, document title, and PDF are required.", "error")
+        return redirect(url_for("admin_dashboard"))
+    filename = f"{country}_{place}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{secure_filename(file.filename)}"
+    file.save(PDF_DIR / filename)
+    with db() as conn:
+        conn.execute(
+            "INSERT INTO county_documents (country, place_name, sector, title, filename, original_filename, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (country, place, sector, title, filename, file.filename, datetime.utcnow().isoformat()),
+        )
+    flash("PDF document uploaded and linked to the frontend county report.", "success")
+    return redirect(url_for("admin_dashboard"))
+
+
+init_db()
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))

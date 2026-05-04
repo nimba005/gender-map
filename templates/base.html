@@ -20,10 +20,20 @@
     <nav class="nav-links" aria-label="Main navigation">
       <a href="{{ url_for('home') }}" class="{% if page == 'home' %}is-active{% endif %}">Overview</a>
       <a href="{{ url_for('map_page') }}" class="{% if page == 'map' %}is-active{% endif %}">Interactive Map</a>
+      <a href="{{ url_for('admin_dashboard') if session.get('admin_id') else url_for('admin_login') }}" class="{% if page == 'admin' %}is-active{% endif %}">Admin</a>
     </nav>
   </header>
 
   <main>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-stack">
+          {% for category, message in messages %}
+            <div class="flash {{ category }}">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
     {% block content %}{% endblock %}
   </main>
 
