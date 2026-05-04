@@ -244,7 +244,7 @@ function popupForRecord(record) {
         <dt>Adaptive capacity</dt><dd>${formatScore(metrics.adaptive_capacity)}</dd>
       </dl>
       <ul>${indicators}</ul>
-      <button class="popup-action" type="button" data-read-record="${escapeHtml(record.name)}">Open overview</button>
+      <button class="popup-action" type="button" data-overview-record="${escapeHtml(record.name)}">Open overview</button>
     </div>
   `;
 }
@@ -363,6 +363,7 @@ function selectRecord(recordName, shouldScroll = true) {
     <article><span>Top pressure</span><strong>${escapeHtml(record.top_sector || "N/A")}</strong></article>
   `;
   overview.hidden = false;
+  setDetailMode(true);
 
   document.querySelectorAll(".record-card").forEach((card) => {
     card.classList.toggle("is-selected", card.dataset.recordName === record.name);
@@ -371,6 +372,21 @@ function selectRecord(recordName, shouldScroll = true) {
   if (shouldScroll) {
     overview.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+}
+
+function setDetailMode(isFocused) {
+  const records = document.querySelector(".records-section");
+  if (records) records.hidden = Boolean(isFocused);
+}
+
+function clearSelectedRecord() {
+  selectedRecord = null;
+  const overview = document.getElementById("countyOverview");
+  if (overview) overview.hidden = true;
+  document.getElementById("fullReport")?.remove();
+  setDetailMode(false);
+  document.querySelectorAll(".record-card").forEach((card) => card.classList.remove("is-selected"));
+  document.querySelector(".records-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function renderFullReport(record = selectedRecord) {
@@ -408,7 +424,7 @@ function renderFullReport(record = selectedRecord) {
     </div>
   `;
 
-  document.querySelector(".records-section").after(section);
+  document.getElementById("countyOverview").after(section);
   section.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
@@ -564,6 +580,7 @@ function applyState() {
     const overview = document.getElementById("countyOverview");
     if (overview) overview.hidden = true;
     document.getElementById("fullReport")?.remove();
+    setDetailMode(false);
   }
   renderCountryCards();
   renderCountryMarkers();
@@ -573,6 +590,11 @@ function applyState() {
   renderSectorChart(records);
   renderRiskList(records);
   renderRecordCards(records);
+  if (selectedRecord) {
+    selectRecord(selectedRecord.name, false);
+  } else {
+    setDetailMode(false);
+  }
   renderLegend();
   renderMetricNote();
 }
@@ -617,7 +639,14 @@ async function init() {
     applyState();
   });
   document.getElementById("overviewReadMore").addEventListener("click", () => renderFullReport());
+  document.getElementById("overviewBack").addEventListener("click", clearSelectedRecord);
   document.addEventListener("click", (event) => {
+    const overviewTarget = event.target.closest("[data-overview-record]");
+    if (overviewTarget) {
+      selectRecord(overviewTarget.getAttribute("data-overview-record"), true);
+      return;
+    }
+
     const readTarget = event.target.closest("[data-read-record]");
     if (readTarget) {
       const name = readTarget.getAttribute("data-read-record");

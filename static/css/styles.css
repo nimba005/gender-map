@@ -573,10 +573,21 @@ main {
   text-transform: none;
 }
 
-#overviewReadMore {
+.overview-actions {
   grid-column: 1 / -1;
-  width: fit-content;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+#overviewReadMore {
   color: #fff;
+}
+
+#overviewBack {
+  color: var(--brand-2);
+  border-color: rgba(23, 107, 77, 0.25);
+  background: var(--surface-soft);
 }
 
 .bar-chart,
