@@ -1036,6 +1036,83 @@ main {
   font-size: 13px;
 }
 
+.ai-narrative-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(23, 107, 77, 0.18);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, #f1f7f3 100%);
+}
+
+.ai-narrative-card > small,
+.ai-error {
+  color: var(--muted);
+}
+
+.ai-narrative-card.is-loading {
+  opacity: 0.76;
+}
+
+.ai-narrative-card.is-loading::after {
+  content: "Generating AI narrative and image...";
+  color: var(--brand);
+  font-weight: 900;
+}
+
+.ai-narrative-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ai-narrative-head .button-secondary {
+  color: var(--brand-2);
+  border-color: rgba(23, 107, 77, 0.25);
+  background: var(--surface-soft);
+}
+
+.ai-report-image {
+  width: 100%;
+  max-height: 360px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.ai-report-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ai-report-grid section {
+  padding: 14px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--border);
+}
+
+.ai-report-grid h4 {
+  margin: 0 0 10px;
+  letter-spacing: 0;
+}
+
+.ai-report-grid ul {
+  margin: 0 0 0 18px;
+  padding: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.ai-error {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff1f1;
+  border: 1px solid rgba(185, 28, 28, 0.24);
+}
+
 @media (max-width: 1180px) {
   .map-shell {
     grid-template-columns: 1fr;
@@ -1085,7 +1162,8 @@ main {
   .overview-grid,
   .report-summary,
   .report-sector-grid,
-  .form-pair {
+  .form-pair,
+  .ai-report-grid {
     grid-template-columns: 1fr;
   }
 

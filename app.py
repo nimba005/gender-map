@@ -3,6 +3,9 @@ import os
 import sqlite3
 import zipfile
 import xml.etree.ElementTree as ET
+import base64
+import urllib.error
+import urllib.request
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
@@ -34,9 +37,10 @@ INSTANCE_DIR = BASE_DIR / "instance"
 UPLOAD_DIR = INSTANCE_DIR / "uploads"
 PDF_DIR = UPLOAD_DIR / "documents"
 EXCEL_DIR = UPLOAD_DIR / "excels"
+AI_IMAGE_DIR = UPLOAD_DIR / "ai_images"
 DB_PATH = INSTANCE_DIR / "gender_hotspots.db"
 
-for folder in (INSTANCE_DIR, PDF_DIR, EXCEL_DIR):
+for folder in (INSTANCE_DIR, PDF_DIR, EXCEL_DIR, AI_IMAGE_DIR):
     folder.mkdir(parents=True, exist_ok=True)
 
 NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
@@ -47,6 +51,8 @@ COUNTRY_META = {
     "Ghana": {"center": [7.9465, -1.0232], "zoom": 6, "admin_label": "Regions", "geometry_file": None},
 }
 SECTORS = ["Water", "Energy", "Agriculture"]
+DEFAULT_OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+OPENAI_FALLBACK_MODEL = os.getenv("OPENAI_FALLBACK_MODEL", "gpt-4o-mini")
 
 
 def db():
@@ -104,6 +110,17 @@ def init_db():
                 filename TEXT NOT NULL,
                 original_filename TEXT NOT NULL,
                 uploaded_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS ai_narratives (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                country TEXT NOT NULL,
+                place_name TEXT NOT NULL,
+                sector TEXT NOT NULL,
+                narrative_json TEXT NOT NULL,
+                image_filename TEXT,
+                image_alt TEXT,
+                generated_at TEXT NOT NULL,
+                UNIQUE(country, place_name, sector)
             );
             """
         )
@@ -291,6 +308,177 @@ def process_excel_upload(country, sector, path, source_filename):
     return saved
 
 
+def openai_request(payload):
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY is not set in .env")
+
+    req = urllib.request.Request(
+        "https://api.openai.com/v1/responses",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=90) as response:
+            return json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"OpenAI request failed: {detail}") from exc
+
+
+def is_openai_model_access_error(error):
+    message = str(error).lower()
+    return (
+        "must be verified" in message
+        or "model_not_found" in message
+        or "does not have access to model" in message
+        or "unsupported model" in message
+    )
+
+
+def is_openai_tool_error(error):
+    message = str(error).lower()
+    return "web_search" in message or "image_generation" in message or "tool" in message
+
+
+def extract_response_text(response):
+    if response.get("output_text"):
+        return response["output_text"]
+    chunks = []
+    for item in response.get("output", []):
+        for content in item.get("content", []) if isinstance(item, dict) else []:
+            if content.get("type") in {"output_text", "text"} and content.get("text"):
+                chunks.append(content["text"])
+    return "\n".join(chunks).strip()
+
+
+def extract_image_b64(response):
+    for item in response.get("output", []):
+        if item.get("type") == "image_generation_call" and item.get("result"):
+            return item["result"]
+    return None
+
+
+def parse_json_text(text):
+    value = (text or "").strip()
+    if value.startswith("```"):
+        value = value.strip("`")
+        value = value.replace("json\n", "", 1).replace("JSON\n", "", 1)
+    try:
+        return json.loads(value)
+    except json.JSONDecodeError:
+        start = value.find("{")
+        end = value.rfind("}")
+        if start >= 0 and end > start:
+            try:
+                return json.loads(value[start:end + 1])
+            except json.JSONDecodeError:
+                pass
+    return {
+        "overview": value or "AI narrative could not be parsed into structured sections.",
+        "context": "",
+        "gender_implications": [],
+        "sector_reading": [],
+        "recommended_actions": [],
+        "image_alt": "AI-generated county climate and gender illustration",
+    }
+
+
+def prompt_for_ai_narrative(record, sector):
+    metrics = record.get("metrics", {}).get(sector, {})
+    all_metrics = json.dumps(record.get("metrics", {}), indent=2)
+    return f"""
+Create a professional gender hotspot narrative for {record.get('name')}, {record.get('country')}, focused on {sector}.
+
+Use these dashboard metrics:
+Selected sector metrics: {json.dumps(metrics, indent=2)}
+All sector metrics: {all_metrics}
+Composite score: {record.get('composite_score')}
+Composite risk: {record.get('risk_level')}
+Top pressure sector: {record.get('top_sector')}
+
+You may use web search for general county context, climate stressors, livelihoods, infrastructure, gender and development context, but do not include citations, footnotes, URLs, or named external website references in the final answer.
+
+Return only valid JSON with this shape:
+{{
+  "overview": "2-3 paragraphs in plain professional language",
+  "context": "1-2 paragraphs with local development and climate context",
+  "gender_implications": ["bullet", "bullet", "bullet", "bullet"],
+  "sector_reading": ["bullet", "bullet", "bullet"],
+  "recommended_actions": ["bullet", "bullet", "bullet", "bullet"],
+  "data_cautions": ["bullet", "bullet"],
+  "image_alt": "short alt text for a generated editorial-style image"
+}}
+
+Keep the tone suitable for policy makers, researchers, and programme teams. Do not claim certainty beyond the data.
+"""
+
+
+def save_ai_image(image_b64, country, place, sector):
+    if not image_b64:
+        return None
+    filename = secure_filename(f"{country}_{place}_{sector}_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.png")
+    path = AI_IMAGE_DIR / filename
+    path.write_bytes(base64.b64decode(image_b64))
+    return filename
+
+
+def generate_ai_narrative(record, sector):
+    prompt = prompt_for_ai_narrative(record, sector)
+
+    def build_payload(model, include_tools=True):
+        payload = {
+            "model": model,
+            "input": prompt,
+        }
+        if include_tools:
+            payload["tools"] = [
+                {"type": "web_search"},
+                {"type": "image_generation"},
+            ]
+            payload["tool_choice"] = "auto"
+        return payload
+
+    attempts = [
+        (DEFAULT_OPENAI_MODEL, True),
+        (OPENAI_FALLBACK_MODEL, True),
+        (OPENAI_FALLBACK_MODEL, False),
+    ]
+    seen = set()
+    last_error = None
+    response = None
+    for model, include_tools in attempts:
+        key = (model, include_tools)
+        if key in seen:
+            continue
+        seen.add(key)
+        try:
+            response = openai_request(build_payload(model, include_tools=include_tools))
+            if extract_response_text(response):
+                break
+        except RuntimeError as exc:
+            last_error = exc
+            if is_openai_model_access_error(exc) or is_openai_tool_error(exc):
+                continue
+            raise
+
+    if response is None:
+        raise last_error or RuntimeError("OpenAI request failed.")
+
+    narrative = parse_json_text(extract_response_text(response))
+    image_filename = save_ai_image(
+        extract_image_b64(response),
+        record.get("country", "country"),
+        record.get("name", "place"),
+        sector,
+    )
+    return narrative, image_filename
+
+
 def base_hotspot_payload():
     with open(DATA_DIR / "hotspot_data.json", encoding="utf-8") as handle:
         return json.load(handle)
@@ -345,12 +533,24 @@ def merged_hotspot_payload():
             item = dict(row)
             item["url"] = url_for("uploaded_document", filename=item["filename"])
             doc_map.setdefault((row["country"], row["place_name"]), []).append(item)
+        ai_map = {}
+        for row in conn.execute("SELECT * FROM ai_narratives ORDER BY generated_at DESC"):
+            item = dict(row)
+            item["narrative"] = json.loads(item.pop("narrative_json") or "{}")
+            if item.get("image_filename"):
+                item["image_url"] = url_for("uploaded_ai_image", filename=item["image_filename"])
+            ai_map[(row["country"], row["place_name"], row["sector"])] = item
 
     for country_records in records.values():
         for record in country_records:
             key = (record["country"], record["name"])
             record["reports"] = report_map.get(key, [])
             record["documents"] = doc_map.get(key, [])
+            record["ai_narratives"] = {
+                sector: ai_map.get((record["country"], record["name"], sector))
+                for sector in SECTORS
+                if ai_map.get((record["country"], record["name"], sector))
+            }
 
     countries = []
     for country, meta in COUNTRY_META.items():
@@ -388,6 +588,75 @@ def hotspot_data_api():
     return jsonify(merged_hotspot_payload())
 
 
+@app.route("/api/ai-narrative", methods=["POST"])
+def ai_narrative_api():
+    data = request.get_json(silent=True) or {}
+    country = data.get("country")
+    place = data.get("place_name")
+    sector = data.get("sector")
+    force = bool(data.get("force"))
+    if country not in COUNTRY_META or sector not in SECTORS or not place:
+        return jsonify({"error": "country, place_name, and sector are required"}), 400
+
+    with db() as conn:
+        cached = conn.execute(
+            "SELECT * FROM ai_narratives WHERE country = ? AND place_name = ? AND sector = ?",
+            (country, place, sector),
+        ).fetchone()
+        if cached and not force:
+            item = dict(cached)
+            item["narrative"] = json.loads(item.pop("narrative_json") or "{}")
+            if item.get("image_filename"):
+                item["image_url"] = url_for("uploaded_ai_image", filename=item["image_filename"])
+            return jsonify(item)
+
+    record = None
+    for candidate in merged_hotspot_payload()["records"].get(country, []):
+        if candidate["name"].lower() == str(place).lower():
+            record = candidate
+            break
+    if not record:
+        return jsonify({"error": "No hotspot record found for this place"}), 404
+
+    try:
+        narrative, image_filename = generate_ai_narrative(record, sector)
+    except Exception as exc:
+        return jsonify({"error": str(exc)}), 502
+
+    image_alt = narrative.get("image_alt") or f"AI-generated climate and gender illustration for {place}"
+    with db() as conn:
+        conn.execute(
+            """
+            INSERT INTO ai_narratives (country, place_name, sector, narrative_json, image_filename, image_alt, generated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(country, place_name, sector) DO UPDATE SET
+                narrative_json=excluded.narrative_json,
+                image_filename=excluded.image_filename,
+                image_alt=excluded.image_alt,
+                generated_at=excluded.generated_at
+            """,
+            (
+                country,
+                place,
+                sector,
+                json.dumps(narrative),
+                image_filename,
+                image_alt,
+                datetime.utcnow().isoformat(),
+            ),
+        )
+
+    return jsonify({
+        "country": country,
+        "place_name": place,
+        "sector": sector,
+        "narrative": narrative,
+        "image_filename": image_filename,
+        "image_url": url_for("uploaded_ai_image", filename=image_filename) if image_filename else None,
+        "image_alt": image_alt,
+    })
+
+
 @app.route("/data/<path:filename>")
 def data_files(filename):
     return send_from_directory(DATA_DIR, filename)
@@ -396,6 +665,11 @@ def data_files(filename):
 @app.route("/uploads/documents/<path:filename>")
 def uploaded_document(filename):
     return send_from_directory(PDF_DIR, filename)
+
+
+@app.route("/uploads/ai-images/<path:filename>")
+def uploaded_ai_image(filename):
+    return send_from_directory(AI_IMAGE_DIR, filename)
 
 
 @app.route("/admin/login", methods=["GET", "POST"])

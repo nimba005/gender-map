@@ -315,6 +315,66 @@ function adminReportSections(record) {
   `).join("");
 }
 
+function listItems(items) {
+  const values = Array.isArray(items) ? items : [];
+  return values.length ? `<ul>${values.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : "";
+}
+
+function aiNarrativeSections(record) {
+  const ai = record.ai_narratives?.[state.sector];
+  if (!ai) {
+    return `
+      <article class="ai-narrative-card" data-ai-card>
+        <div>
+          <span class="card-kicker">AI insight brief</span>
+          <h3>Generate a professional narrative</h3>
+          <p>
+            No AI narrative has been generated for ${escapeHtml(record.name)} and ${escapeHtml(state.sector)} yet.
+            Use AI to draft a readable policy brief using the hotspot metrics and wider public context.
+          </p>
+        </div>
+        <button class="button button-primary" type="button" data-generate-ai="${escapeHtml(record.name)}">Generate AI narrative</button>
+        <small>The AI brief is cached after generation and does not expose external website links in the public report.</small>
+      </article>
+    `;
+  }
+
+  const narrative = ai.narrative || {};
+  return `
+    <article class="ai-narrative-card ai-narrative-card-ready" data-ai-card>
+      <div class="ai-narrative-head">
+        <div>
+          <span class="card-kicker">AI insight brief</span>
+          <h3>${escapeHtml(record.name)} ${escapeHtml(state.sector)} narrative</h3>
+          <p>Generated from dashboard metrics with broader public context. No external website links are shown in this reader view.</p>
+        </div>
+        <button class="button button-secondary" type="button" data-generate-ai="${escapeHtml(record.name)}" data-force-ai="1">Regenerate</button>
+      </div>
+      ${ai.image_url ? `<img class="ai-report-image" src="${escapeHtml(ai.image_url)}" alt="${escapeHtml(ai.image_alt || narrative.image_alt || "AI-generated report image")}">` : ""}
+      ${textBlock("AI overview", narrative.overview)}
+      ${textBlock("Local context", narrative.context)}
+      <div class="ai-report-grid">
+        <section>
+          <h4>Gender implications</h4>
+          ${listItems(narrative.gender_implications)}
+        </section>
+        <section>
+          <h4>Sector reading</h4>
+          ${listItems(narrative.sector_reading)}
+        </section>
+        <section>
+          <h4>Recommended actions</h4>
+          ${listItems(narrative.recommended_actions)}
+        </section>
+        <section>
+          <h4>Data cautions</h4>
+          ${listItems(narrative.data_cautions)}
+        </section>
+      </div>
+    </article>
+  `;
+}
+
 function documentSections(record) {
   const docs = record.documents || [];
   if (!docs.length) {
@@ -417,6 +477,7 @@ function renderFullReport(record = selectedRecord) {
     </div>
     <div class="report-reading-grid">
       ${adminReportSections(record)}
+      ${aiNarrativeSections(record)}
       ${documentSections(record)}
     </div>
     <div class="report-sector-grid">
@@ -426,6 +487,45 @@ function renderFullReport(record = selectedRecord) {
 
   document.getElementById("countyOverview").after(section);
   section.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function generateAiNarrative(recordName, force = false) {
+  const record = recordByCounty(recordName);
+  if (!record) return;
+  const card = document.querySelector("[data-ai-card]");
+  if (card) {
+    card.classList.add("is-loading");
+    card.querySelector("button")?.setAttribute("disabled", "disabled");
+  }
+
+  try {
+    const response = await fetch("/api/ai-narrative", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        country: record.country,
+        place_name: record.name,
+        sector: state.sector,
+        force
+      })
+    });
+    const payload = await response.json();
+    if (!response.ok) throw new Error(payload.error || "AI narrative could not be generated.");
+
+    record.ai_narratives = record.ai_narratives || {};
+    record.ai_narratives[state.sector] = payload;
+    if (selectedRecord?.name === record.name) selectedRecord = record;
+    renderFullReport(record);
+  } catch (error) {
+    if (card) {
+      card.classList.remove("is-loading");
+      card.querySelector("button")?.removeAttribute("disabled");
+      const errorBox = document.createElement("p");
+      errorBox.className = "ai-error";
+      errorBox.textContent = error.message;
+      card.appendChild(errorBox);
+    }
+  }
 }
 
 function renderCountyLayer() {
@@ -657,6 +757,15 @@ async function init() {
 
     if (event.target.closest("[data-close-report]")) {
       document.getElementById("fullReport")?.remove();
+      return;
+    }
+
+    const aiTarget = event.target.closest("[data-generate-ai]");
+    if (aiTarget) {
+      generateAiNarrative(
+        aiTarget.getAttribute("data-generate-ai"),
+        aiTarget.getAttribute("data-force-ai") === "1"
+      );
     }
   });
 
