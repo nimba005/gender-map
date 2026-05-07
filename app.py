@@ -57,7 +57,6 @@ COUNTRY_META = {
 }
 SECTORS = ["Water", "Energy", "Agriculture"]
 DEFAULT_OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-OPENAI_FALLBACK_MODEL = os.getenv("OPENAI_FALLBACK_MODEL", "gpt-4o-mini")
 
 
 def db():
@@ -575,21 +574,6 @@ def openai_request(payload):
         raise RuntimeError(f"OpenAI request failed: {detail}") from exc
 
 
-def is_openai_model_access_error(error):
-    message = str(error).lower()
-    return (
-        "must be verified" in message
-        or "model_not_found" in message
-        or "does not have access to model" in message
-        or "unsupported model" in message
-    )
-
-
-def is_openai_tool_error(error):
-    message = str(error).lower()
-    return "web_search" in message or "image_generation" in message or "tool" in message
-
-
 def extract_response_text(response):
     if response.get("output_text"):
         return response["output_text"]
@@ -624,11 +608,14 @@ def parse_json_text(text):
             except json.JSONDecodeError:
                 pass
     return {
-        "overview": value or "AI narrative could not be parsed into structured sections.",
-        "context": "",
-        "gender_implications": [],
-        "sector_reading": [],
-        "recommended_actions": [],
+        "overview": value or "AI report could not be parsed into structured sections.",
+        "local_context": "",
+        "headline_findings": [],
+        "vulnerable_groups": [],
+        "sector_implications": [],
+        "priority_actions": [],
+        "monitoring_signals": [],
+        "data_cautions": [],
         "image_alt": "AI-generated county climate and gender illustration",
     }
 
@@ -637,7 +624,7 @@ def prompt_for_ai_narrative(record, sector):
     metrics = record.get("metrics", {}).get(sector, {})
     all_metrics = json.dumps(record.get("metrics", {}), indent=2)
     return f"""
-Create a professional gender hotspot narrative for {record.get('name')}, {record.get('country')}, focused on {sector}.
+Create a professional county-level climate change and gender vulnerability report for {record.get('name')}, {record.get('country')}, focused on {sector}.
 
 Use these dashboard metrics:
 Selected sector metrics: {json.dumps(metrics, indent=2)}
@@ -646,20 +633,24 @@ Composite score: {record.get('composite_score')}
 Composite risk: {record.get('risk_level')}
 Top pressure sector: {record.get('top_sector')}
 
-You may use web search for general county context, climate stressors, livelihoods, infrastructure, gender and development context, but do not include citations, footnotes, URLs, or named external website references in the final answer.
+You may use web search for general local context, climate stressors, livelihoods, infrastructure, gender and development context, but do not include citations, footnotes, URLs, or named external website references in the final answer.
+
+Use the metrics as the anchor of the report. Explain what the score pattern means, which dimensions are elevated, which sector is under the strongest pressure, and what that implies for county planning and programme design. Keep the language specific, decision-useful, and suitable for policymakers, researchers, and programme teams.
 
 Return only valid JSON with this shape:
 {{
-  "overview": "2-3 paragraphs in plain professional language",
-  "context": "1-2 paragraphs with local development and climate context",
-  "gender_implications": ["bullet", "bullet", "bullet", "bullet"],
-  "sector_reading": ["bullet", "bullet", "bullet"],
-  "recommended_actions": ["bullet", "bullet", "bullet", "bullet"],
-  "data_cautions": ["bullet", "bullet"],
+  "overview": "2-3 paragraphs giving an executive summary",
+  "local_context": "1-2 paragraphs with local development and climate context",
+  "headline_findings": ["finding with explicit labels and implications", "finding", "finding", "finding"],
+  "vulnerable_groups": ["group-level implication", "group-level implication", "group-level implication"],
+  "sector_implications": ["sector implication", "sector implication", "sector implication", "sector implication"],
+  "priority_actions": ["action with who/what emphasis", "action", "action", "action"],
+  "monitoring_signals": ["what to monitor next", "what to monitor next", "what to monitor next"],
+  "data_cautions": ["data caution", "data caution"],
   "image_alt": "short alt text for a generated editorial-style image"
 }}
 
-Keep the tone suitable for policy makers, researchers, and programme teams. Do not claim certainty beyond the data.
+Do not claim certainty beyond the data. Avoid vague generic statements.
 """
 
 
@@ -674,47 +665,21 @@ def save_ai_image(image_b64, country, place, sector):
 
 def generate_ai_narrative(record, sector):
     prompt = prompt_for_ai_narrative(record, sector)
+    payload = {
+        "model": DEFAULT_OPENAI_MODEL,
+        "input": prompt,
+        "tools": [
+            {"type": "web_search"},
+            {"type": "image_generation"},
+        ],
+        "tool_choice": "auto",
+    }
+    response = openai_request(payload)
+    response_text = extract_response_text(response)
+    if not response_text:
+        raise RuntimeError("OpenAI returned an empty county report.")
 
-    def build_payload(model, include_tools=True):
-        payload = {
-            "model": model,
-            "input": prompt,
-        }
-        if include_tools:
-            payload["tools"] = [
-                {"type": "web_search"},
-                {"type": "image_generation"},
-            ]
-            payload["tool_choice"] = "auto"
-        return payload
-
-    attempts = [
-        (DEFAULT_OPENAI_MODEL, True),
-        (OPENAI_FALLBACK_MODEL, True),
-        (OPENAI_FALLBACK_MODEL, False),
-    ]
-    seen = set()
-    last_error = None
-    response = None
-    for model, include_tools in attempts:
-        key = (model, include_tools)
-        if key in seen:
-            continue
-        seen.add(key)
-        try:
-            response = openai_request(build_payload(model, include_tools=include_tools))
-            if extract_response_text(response):
-                break
-        except RuntimeError as exc:
-            last_error = exc
-            if is_openai_model_access_error(exc) or is_openai_tool_error(exc):
-                continue
-            raise
-
-    if response is None:
-        raise last_error or RuntimeError("OpenAI request failed.")
-
-    narrative = parse_json_text(extract_response_text(response))
+    narrative = parse_json_text(response_text)
     image_filename = save_ai_image(
         extract_image_b64(response),
         record.get("country", "country"),

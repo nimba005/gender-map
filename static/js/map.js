@@ -18,6 +18,14 @@ const METRIC_COPY = {
   risk_level: "Risk class derived from the selected score thresholds."
 };
 
+const REPORT_METRIC_LABELS = {
+  gender_hotspot_score: "Gender hotspot score",
+  vulnerability_score: "Vulnerability score",
+  exposure: "Exposure",
+  sensitivity: "Sensitivity",
+  adaptive_capacity: "Adaptive capacity"
+};
+
 const state = {
   country: "__all__",
   sector: "__all__",
@@ -45,6 +53,10 @@ function escapeHtml(value) {
 
 function formatScore(value) {
   return value == null ? "N/A" : Number(value).toFixed(1);
+}
+
+function metricLabel(metric) {
+  return REPORT_METRIC_LABELS[metric] || metric.replace(/_/g, " ");
 }
 
 function selectedSectorLabel() {
@@ -245,7 +257,7 @@ function countyNameFromFeature(feature) {
 }
 
 function recordByCounty(name) {
-  return (hotspotData.records.Kenya || []).find((record) => record.name === name);
+  return Object.values(hotspotData?.records || {}).flat().find((record) => record.name === name);
 }
 
 function styleCounty(feature) {
@@ -303,6 +315,118 @@ function sectorReportRows(record) {
   }).join("");
 }
 
+function narrativeTextValue(narrative, ...keys) {
+  for (const key of keys) {
+    const value = narrative?.[key];
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return "";
+}
+
+function narrativeListValue(narrative, ...keys) {
+  for (const key of keys) {
+    const value = narrative?.[key];
+    if (Array.isArray(value) && value.filter(Boolean).length) return value.filter(Boolean);
+  }
+  return [];
+}
+
+function metricBar(label, value, tone = "default") {
+  const numeric = value == null || !Number.isFinite(Number(value)) ? null : Math.max(0, Math.min(100, Number(value)));
+  return `
+    <div class="metric-bar metric-bar-${tone}">
+      <div class="metric-bar-head">
+        <span>${escapeHtml(label)}</span>
+        <strong>${numeric == null ? "N/A" : numeric.toFixed(1)}</strong>
+      </div>
+      <div class="metric-bar-track" aria-hidden="true">
+        <span class="metric-bar-fill" style="width:${numeric == null ? 0 : numeric}%;"></span>
+      </div>
+    </div>
+  `;
+}
+
+function aiInsightSummary(record) {
+  const sector = sectorForDisplay(record);
+  const selectedMetrics = record.metrics?.[sector] || {};
+  return `
+    <div class="ai-insight-summary">
+      <article>
+        <span>County composite score</span>
+        <strong>${formatScore(record.composite_score)}</strong>
+        <small>Overall county hotspot reading across available sectors.</small>
+      </article>
+      <article>
+        <span>County composite risk</span>
+        <strong>${escapeHtml(record.risk_level || "No data")}</strong>
+        <small>Current county-wide risk label used in the map overview.</small>
+      </article>
+      <article>
+        <span>Lead pressure sector</span>
+        <strong>${escapeHtml(record.top_sector || "N/A")}</strong>
+        <small>Sector with the strongest hotspot signal in the county dataset.</small>
+      </article>
+      <article>
+        <span>${escapeHtml(sector)} hotspot score</span>
+        <strong>${formatScore(selectedMetrics.gender_hotspot_score)}</strong>
+        <small>Sector-specific hotspot score used for the current detailed reading.</small>
+      </article>
+    </div>
+  `;
+}
+
+function aiMetricPanels(record) {
+  const sectors = hotspotData?.meta?.sectors || [];
+  const selectedSector = sectorForDisplay(record);
+  const selectedMetrics = record.metrics?.[selectedSector] || {};
+  const sectorBars = sectors.map((sector) => {
+    const metrics = record.metrics?.[sector] || {};
+    return `
+      <div class="ai-sector-row ${sector === selectedSector ? "is-selected" : ""}">
+        <div class="ai-sector-labels">
+          <strong>${escapeHtml(sector)}</strong>
+          <span>${escapeHtml(metrics.risk_level || "No data")}</span>
+        </div>
+        <div class="ai-sector-bar-track" aria-hidden="true">
+          <span class="ai-sector-bar-fill" style="width:${Math.max(0, Math.min(100, Number(metrics.gender_hotspot_score) || 0))}%;"></span>
+        </div>
+        <em>${formatScore(metrics.gender_hotspot_score)}</em>
+      </div>
+    `;
+  }).join("");
+
+  const dimensionBars = [
+    metricBar(metricLabel("gender_hotspot_score"), selectedMetrics.gender_hotspot_score, "primary"),
+    metricBar(metricLabel("vulnerability_score"), selectedMetrics.vulnerability_score, "alert"),
+    metricBar(metricLabel("exposure"), selectedMetrics.exposure),
+    metricBar(metricLabel("sensitivity"), selectedMetrics.sensitivity),
+    metricBar(metricLabel("adaptive_capacity"), selectedMetrics.adaptive_capacity, "capacity")
+  ].join("");
+
+  return `
+    <div class="ai-visual-grid">
+      <section class="ai-visual-card">
+        <div class="ai-visual-head">
+          <h4>County sector comparison</h4>
+          <p>Hotspot score across Water, Energy, and Agriculture with the active focus sector clearly labeled.</p>
+        </div>
+        <div class="ai-sector-bars">
+          ${sectorBars}
+        </div>
+      </section>
+      <section class="ai-visual-card">
+        <div class="ai-visual-head">
+          <h4>${escapeHtml(selectedSector)} metric profile</h4>
+          <p>Full labeled reading of the selected sector dimensions used in the hotspot model.</p>
+        </div>
+        <div class="metric-bar-grid">
+          ${dimensionBars}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
 function textBlock(title, text) {
   const value = String(text || "").trim();
   if (!value) return "";
@@ -318,6 +442,87 @@ function textBlock(title, text) {
       ${paragraphs}
     </article>
   `;
+}
+
+function buildAiNarrativeExportHtml(record, sector, ai) {
+  const narrative = ai?.narrative || {};
+  const overview = narrativeTextValue(narrative, "overview");
+  const localContext = narrativeTextValue(narrative, "local_context", "context");
+  const headlineFindings = narrativeListValue(narrative, "headline_findings", "gender_implications");
+  const vulnerableGroups = narrativeListValue(narrative, "vulnerable_groups");
+  const sectorImplications = narrativeListValue(narrative, "sector_implications", "sector_reading");
+  const priorityActions = narrativeListValue(narrative, "priority_actions", "recommended_actions");
+  const monitoringSignals = narrativeListValue(narrative, "monitoring_signals");
+  const dataCautions = narrativeListValue(narrative, "data_cautions");
+  const imageHtml = ai?.image_url
+    ? `<img src="${escapeHtml(ai.image_url)}" alt="${escapeHtml(ai.image_alt || narrative.image_alt || "AI-generated report image")}" style="width:100%;max-height:360px;object-fit:cover;border-radius:12px;border:1px solid #d8e3da;margin:16px 0;">`
+    : "";
+  const listSection = (title, items) => {
+    const values = Array.isArray(items) ? items.filter(Boolean) : [];
+    if (!values.length) return "";
+    return `
+      <section style="margin-top:18px;">
+        <h3 style="margin:0 0 10px;font-size:16px;color:#10231c;">${escapeHtml(title)}</h3>
+        <ul style="margin:0;padding-left:20px;color:#4c6158;line-height:1.7;">
+          ${values.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+        </ul>
+      </section>
+    `;
+  };
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(record.name)} ${escapeHtml(sector)} AI Report</title>
+</head>
+<body style="margin:0;background:#f4f7f2;color:#10231c;font:15px/1.65 Inter, Arial, sans-serif;">
+  <main style="max-width:920px;margin:0 auto;padding:32px 24px 48px;">
+    <section style="padding:28px;border:1px solid #d8e3da;border-radius:18px;background:#ffffff;">
+      <span style="display:inline-block;padding:6px 10px;border-radius:999px;background:#eef5ed;color:#176b4d;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">AI Insight Brief</span>
+      <h1 style="margin:14px 0 10px;font-size:28px;line-height:1.2;">${escapeHtml(record.name)} ${escapeHtml(sector)} Narrative</h1>
+      <p style="margin:0;color:#607269;">Generated from dashboard metrics with broader public context for policy, research, and programme use.</p>
+      ${imageHtml}
+      <section style="margin-top:18px;">
+        <h2 style="margin:0 0 10px;font-size:18px;color:#10231c;">Executive overview</h2>
+        <p style="margin:0;color:#4c6158;white-space:pre-wrap;">${escapeHtml(overview)}</p>
+      </section>
+      <section style="margin-top:18px;">
+        <h2 style="margin:0 0 10px;font-size:18px;color:#10231c;">Local context</h2>
+        <p style="margin:0;color:#4c6158;white-space:pre-wrap;">${escapeHtml(localContext)}</p>
+      </section>
+      ${listSection("Headline findings", headlineFindings)}
+      ${listSection("Vulnerable groups", vulnerableGroups)}
+      ${listSection("Sector implications", sectorImplications)}
+      ${listSection("Priority actions", priorityActions)}
+      ${listSection("Monitoring signals", monitoringSignals)}
+      ${listSection("Data cautions", dataCautions)}
+    </section>
+  </main>
+</body>
+</html>`;
+}
+
+function downloadAiNarrative(recordName) {
+  const record = recordByCounty(recordName);
+  if (!record || state.sector === "__all__") return;
+  const ai = record.ai_narratives?.[state.sector];
+  if (!ai) return;
+
+  const html = buildAiNarrativeExportHtml(record, state.sector, ai);
+  const safeName = `${record.country}_${record.name}_${state.sector}_ai_report`
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `${safeName || "ai_report"}.html`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }
 
 function adminReportSections(record) {
@@ -355,11 +560,11 @@ function aiNarrativeSections(record) {
     return `
       <article class="ai-narrative-card">
         <div>
-          <span class="card-kicker">AI insight brief</span>
-          <h3>Select a sector to generate an AI narrative</h3>
+          <span class="card-kicker">AI county report</span>
+          <h3>Select a sector to generate an AI report</h3>
           <p>
-            AI narrative generation is available for a specific sector. Switch from <strong>All sectors</strong>
-            to Water, Energy, or Agriculture to generate or review the narrative for ${escapeHtml(record.name)}.
+            AI report generation is available for a specific sector. Switch from <strong>All sectors</strong>
+            to Water, Energy, or Agriculture to generate or review the report for ${escapeHtml(record.name)}.
           </p>
         </div>
       </article>
@@ -370,49 +575,70 @@ function aiNarrativeSections(record) {
     return `
       <article class="ai-narrative-card" data-ai-card>
         <div>
-          <span class="card-kicker">AI insight brief</span>
-          <h3>Generate a professional narrative</h3>
+          <span class="card-kicker">AI county report</span>
+          <h3>Generate a professional county report</h3>
           <p>
-            No AI narrative has been generated for ${escapeHtml(record.name)} and ${escapeHtml(state.sector)} yet.
-            Use AI to draft a readable policy brief using the hotspot metrics and wider public context.
+            No AI report has been generated for ${escapeHtml(record.name)} and ${escapeHtml(state.sector)} yet.
+            Use AI to draft a readable county report using the hotspot metrics and wider public context.
           </p>
         </div>
-        <button class="button button-primary" type="button" data-generate-ai="${escapeHtml(record.name)}">Generate AI narrative</button>
-        <small>The AI brief is cached after generation and does not expose external website links in the public report.</small>
+        <button class="button button-primary" type="button" data-generate-ai="${escapeHtml(record.name)}">Generate AI report</button>
+        <small>The AI report is cached after generation and does not expose external website links in the public report.</small>
       </article>
     `;
   }
 
   const narrative = ai.narrative || {};
+  const overview = narrativeTextValue(narrative, "overview");
+  const localContext = narrativeTextValue(narrative, "local_context", "context");
+  const headlineFindings = narrativeListValue(narrative, "headline_findings", "gender_implications");
+  const vulnerableGroups = narrativeListValue(narrative, "vulnerable_groups");
+  const sectorImplications = narrativeListValue(narrative, "sector_implications", "sector_reading");
+  const priorityActions = narrativeListValue(narrative, "priority_actions", "recommended_actions");
+  const monitoringSignals = narrativeListValue(narrative, "monitoring_signals");
+  const dataCautions = narrativeListValue(narrative, "data_cautions");
   return `
     <article class="ai-narrative-card ai-narrative-card-ready" data-ai-card>
       <div class="ai-narrative-head">
         <div>
-          <span class="card-kicker">AI insight brief</span>
-          <h3>${escapeHtml(record.name)} ${escapeHtml(state.sector)} narrative</h3>
-          <p>Generated from dashboard metrics with broader public context. No external website links are shown in this reader view.</p>
+          <span class="card-kicker">AI county report</span>
+          <h3>${escapeHtml(record.name)} ${escapeHtml(state.sector)} report</h3>
+          <p>Generated from dashboard metrics with broader public context and organized for decision-ready reading. No external website links are shown in this reader view.</p>
         </div>
-        <button class="button button-secondary" type="button" data-generate-ai="${escapeHtml(record.name)}" data-force-ai="1">Regenerate</button>
+        <div class="ai-narrative-actions">
+          <button class="button button-secondary" type="button" data-download-ai="${escapeHtml(record.name)}">Download report</button>
+          <button class="button button-secondary" type="button" data-generate-ai="${escapeHtml(record.name)}" data-force-ai="1">Regenerate</button>
+        </div>
       </div>
+      ${aiInsightSummary(record)}
+      ${aiMetricPanels(record)}
       ${ai.image_url ? `<img class="ai-report-image" src="${escapeHtml(ai.image_url)}" alt="${escapeHtml(ai.image_alt || narrative.image_alt || "AI-generated report image")}">` : ""}
-      ${textBlock("AI overview", narrative.overview)}
-      ${textBlock("Local context", narrative.context)}
+      ${textBlock("Executive overview", overview)}
+      ${textBlock("Local context", localContext)}
       <div class="ai-report-grid">
         <section>
-          <h4>Gender implications</h4>
-          ${listItems(narrative.gender_implications)}
+          <h4>Headline findings</h4>
+          ${listItems(headlineFindings)}
         </section>
         <section>
-          <h4>Sector reading</h4>
-          ${listItems(narrative.sector_reading)}
+          <h4>Vulnerable groups</h4>
+          ${listItems(vulnerableGroups)}
         </section>
         <section>
-          <h4>Recommended actions</h4>
-          ${listItems(narrative.recommended_actions)}
+          <h4>Sector implications</h4>
+          ${listItems(sectorImplications)}
+        </section>
+        <section>
+          <h4>Priority actions</h4>
+          ${listItems(priorityActions)}
+        </section>
+        <section>
+          <h4>Monitoring signals</h4>
+          ${listItems(monitoringSignals)}
         </section>
         <section>
           <h4>Data cautions</h4>
-          ${listItems(narrative.data_cautions)}
+          ${listItems(dataCautions)}
         </section>
       </div>
     </article>
@@ -922,6 +1148,12 @@ async function init() {
         aiTarget.getAttribute("data-generate-ai"),
         aiTarget.getAttribute("data-force-ai") === "1"
       );
+      return;
+    }
+
+    const aiDownloadTarget = event.target.closest("[data-download-ai]");
+    if (aiDownloadTarget) {
+      downloadAiNarrative(aiDownloadTarget.getAttribute("data-download-ai"));
     }
   });
 

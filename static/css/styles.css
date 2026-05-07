@@ -902,6 +902,43 @@ main {
   margin-top: 18px;
 }
 
+.ai-insight-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ai-insight-summary article {
+  padding: 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(23, 107, 77, 0.14);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(238, 245, 237, 0.94));
+}
+
+.ai-insight-summary span {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ai-insight-summary strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--ink);
+  font-size: 22px;
+  letter-spacing: 0;
+}
+
+.ai-insight-summary small {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .report-sector-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1240,7 +1277,7 @@ main {
 }
 
 .ai-narrative-card.is-loading::after {
-  content: "Generating AI narrative and image...";
+  content: "Generating AI report and image...";
   color: var(--brand);
   font-weight: 900;
 }
@@ -1252,10 +1289,136 @@ main {
   gap: 16px;
 }
 
+.ai-narrative-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 .ai-narrative-head .button-secondary {
   color: var(--brand-2);
   border-color: rgba(23, 107, 77, 0.25);
   background: var(--surface-soft);
+}
+
+.ai-narrative-actions .button-secondary:hover,
+.ai-narrative-actions .button-secondary:focus-visible {
+  color: #fff;
+  border-color: rgba(23, 107, 77, 0.48);
+  background: linear-gradient(135deg, var(--brand), #2f7c9f);
+}
+
+.ai-visual-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ai-visual-card {
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(23, 107, 77, 0.14);
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.ai-visual-head h4 {
+  margin: 0 0 6px;
+  letter-spacing: 0;
+}
+
+.ai-visual-head p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.ai-sector-bars,
+.metric-bar-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.ai-sector-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 140px) minmax(0, 1fr) 58px;
+  align-items: center;
+  gap: 12px;
+}
+
+.ai-sector-row.is-selected {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(23, 107, 77, 0.07);
+  border: 1px solid rgba(23, 107, 77, 0.18);
+}
+
+.ai-sector-labels {
+  display: grid;
+  gap: 2px;
+}
+
+.ai-sector-labels strong,
+.ai-sector-row em {
+  color: var(--ink);
+}
+
+.ai-sector-labels span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.ai-sector-row em {
+  font-style: normal;
+  font-weight: 800;
+  text-align: right;
+}
+
+.ai-sector-bar-track,
+.metric-bar-track {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(13, 24, 33, 0.08);
+  overflow: hidden;
+}
+
+.ai-sector-bar-fill,
+.metric-bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--brand), var(--brand-2));
+}
+
+.metric-bar {
+  display: grid;
+  gap: 8px;
+}
+
+.metric-bar-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: baseline;
+}
+
+.metric-bar-head span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.metric-bar-head strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.metric-bar-alert .metric-bar-fill {
+  background: linear-gradient(90deg, #c2410c, #f59e0b);
+}
+
+.metric-bar-capacity .metric-bar-fill {
+  background: linear-gradient(90deg, #2563eb, #38bdf8);
 }
 
 .ai-report-image {
@@ -1277,6 +1440,35 @@ main {
   border-radius: 8px;
   background: #fff;
   border: 1px solid var(--border);
+}
+
+@media (max-width: 860px) {
+  .ai-insight-summary,
+  .ai-visual-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-narrative-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ai-narrative-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .ai-narrative-actions .button-secondary {
+    width: 100%;
+  }
+
+  .ai-sector-row {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-sector-row em {
+    text-align: left;
+  }
 }
 
 .ai-report-grid h4 {
