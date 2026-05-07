@@ -793,6 +793,12 @@ function resetFilters() {
   applyState();
 }
 
+function updateRecordsBackButton() {
+  const button = document.getElementById("recordsBackButton");
+  if (!button) return;
+  button.hidden = state.country === "__all__";
+}
+
 function applyState() {
   const records = getFilteredRecords();
   if (selectedRecord && !records.some((record) => record.name === selectedRecord.name)) {
@@ -810,6 +816,7 @@ function applyState() {
   renderSectorChart(records);
   renderRiskList(records);
   renderRecordCards(records);
+  updateRecordsBackButton();
   if (selectedRecord) {
     selectRecord(selectedRecord.name, false);
   } else {
@@ -868,6 +875,13 @@ async function init() {
   document.getElementById("sortSelect").addEventListener("change", (event) => {
     state.sort = event.target.value;
     applyState();
+  });
+  document.getElementById("recordsBackButton").addEventListener("click", () => {
+    state.country = "__all__";
+    document.getElementById("countrySelect").value = state.country;
+    clearSelectedRecord();
+    applyState();
+    document.querySelector(".records-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   document.getElementById("resetFilters").addEventListener("click", resetFilters);
   document.getElementById("overviewReadMore").addEventListener("click", () => renderFullReport());

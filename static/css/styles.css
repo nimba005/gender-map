@@ -648,10 +648,24 @@ main {
   color: #fff;
 }
 
+#overviewReadMore:hover,
+#overviewReadMore:focus-visible {
+  color: #10231c;
+  background: #e9c95e;
+  border-color: rgba(248, 215, 125, 0.68);
+}
+
 #overviewBack {
   color: var(--brand-2);
   border-color: rgba(23, 107, 77, 0.25);
   background: var(--surface-soft);
+}
+
+#overviewBack:hover,
+#overviewBack:focus-visible {
+  color: #fff;
+  background: var(--brand);
+  border-color: rgba(23, 107, 77, 0.68);
 }
 
 .bar-chart,
@@ -707,11 +721,25 @@ main {
   margin-bottom: 14px;
 }
 
+.records-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 .records-header p {
   margin: 8px 0 0;
   max-width: 780px;
   color: var(--muted);
   line-height: 1.6;
+}
+
+.records-back-button {
+  color: var(--brand-2);
+  border-color: rgba(23, 107, 77, 0.25);
+  background: var(--surface-soft);
 }
 
 #sortSelect {
@@ -1305,6 +1333,10 @@ main {
   .records-header {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .records-tools {
+    justify-content: stretch;
   }
 
   .hero,

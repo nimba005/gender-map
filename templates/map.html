@@ -134,12 +134,15 @@
           <h2 id="recordsTitle">Study records</h2>
           <p id="recordsIntro">Select a country to move from the regional view into detailed hotspot records and reports.</p>
         </div>
-        <select id="sortSelect" aria-label="Sort records">
-          <option value="score_desc">Score: high to low</option>
-          <option value="score_asc">Score: low to high</option>
-          <option value="name_asc">Name: A to Z</option>
-          <option value="risk_desc">Risk: high to low</option>
-        </select>
+        <div class="records-tools">
+          <button class="button button-secondary records-back-button" id="recordsBackButton" type="button" hidden>Back to all countries</button>
+          <select id="sortSelect" aria-label="Sort records">
+            <option value="score_desc">Score: high to low</option>
+            <option value="score_asc">Score: low to high</option>
+            <option value="name_asc">Name: A to Z</option>
+            <option value="risk_desc">Risk: high to low</option>
+          </select>
+        </div>
       </div>
       <div class="record-grid" id="recordGrid"></div>
       <div class="empty-state" id="emptyState" hidden>
