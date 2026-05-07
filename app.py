@@ -592,6 +592,29 @@ def extract_image_b64(response):
     return None
 
 
+def extract_response_references(response):
+    references = []
+    seen = set()
+    for item in response.get("output", []):
+        for content in item.get("content", []) if isinstance(item, dict) else []:
+            for annotation in content.get("annotations", []) if isinstance(content, dict) else []:
+                if not isinstance(annotation, dict):
+                    continue
+                url = annotation.get("url") or annotation.get("uri")
+                title = annotation.get("title") or annotation.get("text") or annotation.get("label") or url
+                if not url:
+                    continue
+                key = (title, url)
+                if key in seen:
+                    continue
+                seen.add(key)
+                references.append({
+                    "title": title,
+                    "url": url,
+                })
+    return references
+
+
 def parse_json_text(text):
     value = (text or "").strip()
     if value.startswith("```"):
@@ -616,6 +639,7 @@ def parse_json_text(text):
         "priority_actions": [],
         "monitoring_signals": [],
         "data_cautions": [],
+        "references": [],
         "image_alt": "AI-generated county climate and gender illustration",
     }
 
@@ -647,10 +671,11 @@ Return only valid JSON with this shape:
   "priority_actions": ["action with who/what emphasis", "action", "action", "action"],
   "monitoring_signals": ["what to monitor next", "what to monitor next", "what to monitor next"],
   "data_cautions": ["data caution", "data caution"],
+  "references": ["short titles of county-related reports, datasets, or institutional sources that informed the analysis"],
   "image_alt": "short alt text for a generated editorial-style image"
 }}
 
-Do not claim certainty beyond the data. Avoid vague generic statements.
+Do not claim certainty beyond the data. Avoid vague generic statements. Do not place raw URLs or inline citations in the prose sections.
 """
 
 
@@ -680,6 +705,22 @@ def generate_ai_narrative(record, sector):
         raise RuntimeError("OpenAI returned an empty county report.")
 
     narrative = parse_json_text(response_text)
+    references = extract_response_references(response)
+    existing_references = narrative.get("references")
+    normalized_references = []
+    if isinstance(existing_references, list):
+        for item in existing_references:
+            if isinstance(item, str) and item.strip():
+                normalized_references.append({"title": item.strip(), "url": None})
+            elif isinstance(item, dict):
+                title = str(item.get("title") or "").strip()
+                url = str(item.get("url") or "").strip() or None
+                if title:
+                    normalized_references.append({"title": title, "url": url})
+    for ref in references:
+        if not any((entry.get("title"), entry.get("url")) == (ref["title"], ref["url"]) for entry in normalized_references):
+            normalized_references.append(ref)
+    narrative["references"] = normalized_references
     image_filename = save_ai_image(
         extract_image_b64(response),
         record.get("country", "country"),

@@ -675,16 +675,55 @@ main {
   margin-top: 16px;
 }
 
+.chart-detail-panel {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(23, 107, 77, 0.16);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(238, 245, 237, 0.94));
+}
+
+.chart-detail-copy {
+  display: grid;
+  gap: 8px;
+}
+
+.chart-detail-copy strong {
+  color: var(--ink);
+}
+
+.chart-detail-copy p,
+.chart-detail-copy small {
+  margin: 0;
+  color: var(--muted);
+}
+
 .bar-row {
   display: grid;
   grid-template-columns: 92px minmax(0, 1fr) 52px;
   gap: 10px;
   align-items: center;
   font-weight: 800;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
 }
 
 .bar-row span {
   color: var(--muted);
+}
+
+.interactive-chart-row:hover,
+.interactive-chart-row:focus-visible,
+.interactive-chart-row.is-active {
+  border-color: rgba(23, 107, 77, 0.18);
+  background: rgba(23, 107, 77, 0.07);
+  transform: translateY(-1px);
 }
 
 .bar-track {
@@ -707,6 +746,22 @@ main {
   gap: 12px;
   padding: 10px 0;
   border-bottom: 1px solid var(--border);
+  width: 100%;
+  border-top: 0;
+  border-left: 0;
+  border-right: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 160ms ease, background 160ms ease, transform 160ms ease;
+}
+
+.risk-row:hover,
+.risk-row:focus-visible,
+.risk-row.is-active {
+  background: rgba(23, 107, 77, 0.06);
+  border-bottom-color: rgba(23, 107, 77, 0.25);
+  transform: translateY(-1px);
 }
 
 .records-section {
@@ -1419,6 +1474,44 @@ main {
 
 .metric-bar-capacity .metric-bar-fill {
   background: linear-gradient(90deg, #2563eb, #38bdf8);
+}
+
+.ai-reference-card {
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(23, 107, 77, 0.14);
+  background: rgba(255, 255, 255, 0.98);
+}
+
+.ai-reference-card h4 {
+  margin: 0 0 6px;
+  letter-spacing: 0;
+}
+
+.ai-reference-card p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.ai-reference-list {
+  display: grid;
+  gap: 10px;
+  margin: 12px 0 0;
+  padding-left: 20px;
+}
+
+.ai-reference-list li {
+  color: var(--muted);
+}
+
+.ai-reference-list a {
+  color: var(--brand-2);
+  font-weight: 700;
+}
+
+.ai-reference-list a:hover,
+.ai-reference-list a:focus-visible {
+  color: var(--brand);
 }
 
 .ai-report-image {

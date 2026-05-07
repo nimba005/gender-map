@@ -26,6 +26,11 @@ const REPORT_METRIC_LABELS = {
   adaptive_capacity: "Adaptive capacity"
 };
 
+const AFRICA_BOUNDS = L.latLngBounds(
+  L.latLng(-37, -26),
+  L.latLng(38, 64)
+);
+
 const state = {
   country: "__all__",
   sector: "__all__",
@@ -151,10 +156,17 @@ function buildOptions(select, values, allLabel) {
 }
 
 function initMap() {
-  map = L.map("map", { zoomControl: true, scrollWheelZoom: true }).setView([1, 25], 4);
+  map = L.map("map", {
+    zoomControl: true,
+    scrollWheelZoom: true,
+    minZoom: 3,
+    maxZoom: 10,
+    maxBounds: AFRICA_BOUNDS,
+    maxBoundsViscosity: 1
+  }).fitBounds(AFRICA_BOUNDS, { padding: [8, 8] });
 
   const fallbackLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-    maxZoom: 18,
+    maxZoom: 10,
     attribution: "&copy; OpenStreetMap contributors"
   });
 
@@ -163,17 +175,17 @@ function initMap() {
   if (L.gridLayer?.googleMutant && window.google?.maps) {
     const googleRoadmap = L.gridLayer.googleMutant({
       type: "roadmap",
-      maxZoom: 20,
+      maxZoom: 10,
       styles: []
     }).addTo(map);
     const googleHybrid = L.gridLayer.googleMutant({
       type: "hybrid",
-      maxZoom: 20,
+      maxZoom: 10,
       styles: []
     });
     const googleTerrain = L.gridLayer.googleMutant({
       type: "terrain",
-      maxZoom: 20,
+      maxZoom: 10,
       styles: []
     });
 
@@ -331,6 +343,19 @@ function narrativeListValue(narrative, ...keys) {
   return [];
 }
 
+function narrativeReferences(narrative) {
+  const items = Array.isArray(narrative?.references) ? narrative.references : [];
+  return items
+    .map((item) => {
+      if (typeof item === "string" && item.trim()) return { title: item.trim(), url: null };
+      if (!item || typeof item !== "object") return null;
+      const title = String(item.title || "").trim();
+      const url = String(item.url || "").trim() || null;
+      return title ? { title, url } : null;
+    })
+    .filter(Boolean);
+}
+
 function metricBar(label, value, tone = "default") {
   const numeric = value == null || !Number.isFinite(Number(value)) ? null : Math.max(0, Math.min(100, Number(value)));
   return `
@@ -427,6 +452,25 @@ function aiMetricPanels(record) {
   `;
 }
 
+function referenceListMarkup(references) {
+  if (!references.length) return "";
+  return `
+    <section class="ai-reference-card">
+      <h4>Related references</h4>
+      <p>County-related reports, datasets, and institutional sources surfaced during AI generation.</p>
+      <ul class="ai-reference-list">
+        ${references.map((reference) => `
+          <li>
+            ${reference.url
+              ? `<a href="${escapeHtml(reference.url)}" target="_blank" rel="noopener">${escapeHtml(reference.title)}</a>`
+              : `<span>${escapeHtml(reference.title)}</span>`}
+          </li>
+        `).join("")}
+      </ul>
+    </section>
+  `;
+}
+
 function textBlock(title, text) {
   const value = String(text || "").trim();
   if (!value) return "";
@@ -454,6 +498,7 @@ function buildAiNarrativeExportHtml(record, sector, ai) {
   const priorityActions = narrativeListValue(narrative, "priority_actions", "recommended_actions");
   const monitoringSignals = narrativeListValue(narrative, "monitoring_signals");
   const dataCautions = narrativeListValue(narrative, "data_cautions");
+  const references = narrativeReferences(narrative);
   const imageHtml = ai?.image_url
     ? `<img src="${escapeHtml(ai.image_url)}" alt="${escapeHtml(ai.image_alt || narrative.image_alt || "AI-generated report image")}" style="width:100%;max-height:360px;object-fit:cover;border-radius:12px;border:1px solid #d8e3da;margin:16px 0;">`
     : "";
@@ -497,6 +542,18 @@ function buildAiNarrativeExportHtml(record, sector, ai) {
       ${listSection("Priority actions", priorityActions)}
       ${listSection("Monitoring signals", monitoringSignals)}
       ${listSection("Data cautions", dataCautions)}
+      ${references.length ? `
+        <section style="margin-top:18px;">
+          <h3 style="margin:0 0 10px;font-size:16px;color:#10231c;">Related references</h3>
+          <ul style="margin:0;padding-left:20px;color:#4c6158;line-height:1.7;">
+            ${references.map((reference) => `
+              <li>${reference.url
+                ? `<a href="${escapeHtml(reference.url)}" style="color:#176b4d;">${escapeHtml(reference.title)}</a>`
+                : escapeHtml(reference.title)}</li>
+            `).join("")}
+          </ul>
+        </section>
+      ` : ""}
     </section>
   </main>
 </body>
@@ -597,6 +654,7 @@ function aiNarrativeSections(record) {
   const priorityActions = narrativeListValue(narrative, "priority_actions", "recommended_actions");
   const monitoringSignals = narrativeListValue(narrative, "monitoring_signals");
   const dataCautions = narrativeListValue(narrative, "data_cautions");
+  const references = narrativeReferences(narrative);
   return `
     <article class="ai-narrative-card ai-narrative-card-ready" data-ai-card>
       <div class="ai-narrative-head">
@@ -641,6 +699,7 @@ function aiNarrativeSections(record) {
           ${listItems(dataCautions)}
         </section>
       </div>
+      ${referenceListMarkup(references)}
     </article>
   `;
 }
@@ -834,6 +893,7 @@ function fitMap() {
     hotspotData.countries.forEach((country) => group.addLayer(L.marker(country.center)));
     if (countyLayer) group.addLayer(countyLayer);
     map.fitBounds(group.getBounds().pad(0.18));
+    map.panInsideBounds(AFRICA_BOUNDS, { animate: false });
     return;
   }
 
@@ -841,9 +901,11 @@ function fitMap() {
   if (!country) return;
   if (state.country === "Kenya" && countyLayer && countyLayer.getBounds().isValid()) {
     map.fitBounds(countyLayer.getBounds().pad(0.08));
+    map.panInsideBounds(AFRICA_BOUNDS, { animate: false });
     return;
   }
   map.setView(country.center, country.zoom);
+  map.panInsideBounds(AFRICA_BOUNDS, { animate: false });
 }
 
 function renderSummary(records) {
@@ -867,34 +929,103 @@ function renderSummary(records) {
 
 function renderSectorChart(records) {
   const container = document.getElementById("sectorChart");
+  const detail = document.getElementById("sectorChartDetail");
   const rows = hotspotData.meta.sectors.map((sector) => {
-    const values = records.map((record) => record.metrics?.[sector]?.gender_hotspot_score).filter((value) => value != null);
+    const sectorRecords = records.filter((record) => record.metrics?.[sector]?.gender_hotspot_score != null);
+    const values = sectorRecords.map((record) => record.metrics?.[sector]?.gender_hotspot_score).filter((value) => value != null);
     const average = values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
-    return { sector, average };
+    const highest = sectorRecords.length
+      ? sectorRecords.reduce((best, record) => (Number(record.metrics?.[sector]?.gender_hotspot_score) || 0) > (Number(best.metrics?.[sector]?.gender_hotspot_score) || 0) ? record : best, sectorRecords[0])
+      : null;
+    return { sector, average, count: sectorRecords.length, highest, topRisk: highest?.metrics?.[sector]?.risk_level || "No data" };
   });
 
-  container.innerHTML = rows.map(({ sector, average }) => `
-    <div class="bar-row">
+  container.innerHTML = rows.map(({ sector, average, count, highest, topRisk }) => `
+    <button class="bar-row interactive-chart-row ${state.sector === sector ? "is-active" : ""}" type="button"
+      data-sector-chart="${escapeHtml(sector)}"
+      data-average="${average == null ? "" : Number(average).toFixed(1)}"
+      data-count="${count}"
+      data-highest="${escapeHtml(highest?.name || "No visible record")}"
+      data-risk="${escapeHtml(topRisk)}">
       <span>${sector}</span>
       <div class="bar-track"><i style="width:${average || 0}%"></i></div>
       <strong>${formatScore(average)}</strong>
-    </div>
+    </button>
   `).join("");
+
+  const first = rows.find((row) => row.sector === state.sector) || rows[0];
+  if (detail) {
+    detail.innerHTML = first ? `
+      <div class="chart-detail-copy">
+        <strong>${escapeHtml(first.sector)} sector detail</strong>
+        <p>${escapeHtml(metricLabel("gender_hotspot_score"))}: ${formatScore(first.average)} average across ${first.count} visible records.</p>
+        <p>Highest visible hotspot: <strong>${escapeHtml(first.highest?.name || "No visible record")}</strong> with a <strong>${escapeHtml(first.topRisk)}</strong> risk label.</p>
+        <small>Hover over another sector or click it to filter the full workspace to that sector.</small>
+      </div>
+    ` : "";
+  }
 }
 
 function renderRiskList(records) {
   const counts = Object.fromEntries(RISK_ORDER.map((risk) => [risk, 0]));
+  const samples = Object.fromEntries(RISK_ORDER.map((risk) => [risk, []]));
   records.forEach((record) => {
     const risk = riskForRecord(record);
-    if (counts[risk] != null) counts[risk] += 1;
+    if (counts[risk] != null) {
+      counts[risk] += 1;
+      if (samples[risk].length < 3) samples[risk].push(record.name);
+    }
   });
 
   document.getElementById("riskList").innerHTML = [...RISK_ORDER].reverse().map((risk) => `
-    <div class="risk-row">
+    <button class="risk-row interactive-chart-row ${state.risk === risk ? "is-active" : ""}" type="button"
+      data-risk-chart="${escapeHtml(risk)}"
+      data-count="${counts[risk]}"
+      data-samples="${escapeHtml(samples[risk].join(', '))}">
       <span><i style="background:${RISK_COLORS[risk]}"></i>${risk}</span>
       <strong>${counts[risk]}</strong>
-    </div>
+    </button>
   `).join("");
+
+  const detail = document.getElementById("riskChartDetail");
+  if (detail) {
+    const activeRisk = state.risk !== "__all__" ? state.risk : [...RISK_ORDER].reverse().find((risk) => counts[risk] > 0) || "No data";
+    detail.innerHTML = `
+      <div class="chart-detail-copy">
+        <strong>${escapeHtml(activeRisk)} risk detail</strong>
+        <p>${counts[activeRisk] || 0} visible records currently fall in this risk class.</p>
+        <p>${samples[activeRisk]?.length ? `Examples: ${escapeHtml(samples[activeRisk].join(", "))}.` : "No example records are currently visible in this class."}</p>
+        <small>Hover over another risk class or click it to filter the record list by that class.</small>
+      </div>
+    `;
+  }
+}
+
+function updateSectorChartDetailFromElement(element) {
+  const detail = document.getElementById("sectorChartDetail");
+  if (!detail || !element) return;
+  detail.innerHTML = `
+    <div class="chart-detail-copy">
+      <strong>${escapeHtml(element.getAttribute("data-sector-chart"))} sector detail</strong>
+      <p>${escapeHtml(metricLabel("gender_hotspot_score"))}: ${escapeHtml(element.getAttribute("data-average") || "N/A")} average across ${escapeHtml(element.getAttribute("data-count") || "0")} visible records.</p>
+      <p>Highest visible hotspot: <strong>${escapeHtml(element.getAttribute("data-highest") || "No visible record")}</strong> with a <strong>${escapeHtml(element.getAttribute("data-risk") || "No data")}</strong> risk label.</p>
+      <small>Click to focus the map, records, and report flow on this sector.</small>
+    </div>
+  `;
+}
+
+function updateRiskChartDetailFromElement(element) {
+  const detail = document.getElementById("riskChartDetail");
+  if (!detail || !element) return;
+  const samples = element.getAttribute("data-samples");
+  detail.innerHTML = `
+    <div class="chart-detail-copy">
+      <strong>${escapeHtml(element.getAttribute("data-risk-chart"))} risk detail</strong>
+      <p>${escapeHtml(element.getAttribute("data-count") || "0")} visible records currently fall in this risk class.</p>
+      <p>${samples ? `Examples: ${escapeHtml(samples)}.` : "No example records are currently visible in this class."}</p>
+      <small>Click to filter the visible record list by this risk class.</small>
+    </div>
+  `;
 }
 
 function renderCountryRecordCards(records) {
@@ -1113,6 +1244,24 @@ async function init() {
   document.getElementById("overviewReadMore").addEventListener("click", () => renderFullReport());
   document.getElementById("overviewBack").addEventListener("click", clearSelectedRecord);
   document.addEventListener("click", (event) => {
+    const sectorChartTarget = event.target.closest("[data-sector-chart]");
+    if (sectorChartTarget) {
+      state.sector = sectorChartTarget.getAttribute("data-sector-chart");
+      document.getElementById("sectorSelect").value = state.sector;
+      clearSelectedRecord();
+      applyState();
+      return;
+    }
+
+    const riskChartTarget = event.target.closest("[data-risk-chart]");
+    if (riskChartTarget) {
+      state.risk = riskChartTarget.getAttribute("data-risk-chart");
+      document.getElementById("riskSelect").value = state.risk;
+      clearSelectedRecord();
+      applyState();
+      return;
+    }
+
     const countryTarget = event.target.closest("[data-open-country]");
     if (countryTarget) {
       state.country = countryTarget.getAttribute("data-open-country");
@@ -1154,6 +1303,32 @@ async function init() {
     const aiDownloadTarget = event.target.closest("[data-download-ai]");
     if (aiDownloadTarget) {
       downloadAiNarrative(aiDownloadTarget.getAttribute("data-download-ai"));
+    }
+  });
+
+  document.addEventListener("mouseover", (event) => {
+    const sectorChartTarget = event.target.closest("[data-sector-chart]");
+    if (sectorChartTarget) {
+      updateSectorChartDetailFromElement(sectorChartTarget);
+      return;
+    }
+
+    const riskChartTarget = event.target.closest("[data-risk-chart]");
+    if (riskChartTarget) {
+      updateRiskChartDetailFromElement(riskChartTarget);
+    }
+  });
+
+  document.addEventListener("focusin", (event) => {
+    const sectorChartTarget = event.target.closest("[data-sector-chart]");
+    if (sectorChartTarget) {
+      updateSectorChartDetailFromElement(sectorChartTarget);
+      return;
+    }
+
+    const riskChartTarget = event.target.closest("[data-risk-chart]");
+    if (riskChartTarget) {
+      updateRiskChartDetailFromElement(riskChartTarget);
     }
   });
 
