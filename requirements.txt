@@ -26,6 +26,7 @@ flask-login==0.6.3      # For user authentication
 flask-sqlalchemy==3.1.1 # For storing user/map data
 SQLAlchemy==2.0.25
 psycopg2-binary==2.9.9  # For PostgreSQL (if you store data later)
+psycopg[binary]>=3.2
 openpyxl==3.1.5         # For Excel uploads
 xlrd==2.0.1             # For older Excel reading
 

@@ -22,16 +22,17 @@ from flask import (
     session,
     url_for,
 )
+import psycopg
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "dev-gender-hotspot-secret")
 
-BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 INSTANCE_DIR = BASE_DIR / "instance"
 UPLOAD_DIR = INSTANCE_DIR / "uploads"
@@ -39,6 +40,10 @@ PDF_DIR = UPLOAD_DIR / "documents"
 EXCEL_DIR = UPLOAD_DIR / "excels"
 AI_IMAGE_DIR = UPLOAD_DIR / "ai_images"
 DB_PATH = INSTANCE_DIR / "gender_hotspots.db"
+DATABASE_URL = (os.getenv("DATABASE_URL") or "").strip()
+USE_POSTGRES = DATABASE_URL.startswith(("postgres://", "postgresql://"))
+POSTGRES_FALLBACK_TO_SQLITE = os.getenv("POSTGRES_FALLBACK_TO_SQLITE", "1") != "0"
+POSTGRES_FALLBACK_ACTIVE = False
 
 for folder in (INSTANCE_DIR, PDF_DIR, EXCEL_DIR, AI_IMAGE_DIR):
     folder.mkdir(parents=True, exist_ok=True)
@@ -56,74 +61,314 @@ OPENAI_FALLBACK_MODEL = os.getenv("OPENAI_FALLBACK_MODEL", "gpt-4o-mini")
 
 
 def db():
+    global POSTGRES_FALLBACK_ACTIVE
+    if USE_POSTGRES and not POSTGRES_FALLBACK_ACTIVE:
+        try:
+            return PostgresCompatConnection(DATABASE_URL)
+        except Exception as exc:
+            if not POSTGRES_FALLBACK_TO_SQLITE:
+                raise
+            POSTGRES_FALLBACK_ACTIVE = True
+            print(f"WARNING: Postgres unavailable, falling back to SQLite: {exc}")
+
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
 
+class CompatRow(dict):
+    def __init__(self, mapping):
+        super().__init__(mapping)
+        self._keys = list(mapping.keys())
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return super().__getitem__(self._keys[key])
+        return super().__getitem__(key)
+
+
+class PostgresCompatCursor:
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def execute(self, sql, params=None):
+        query = sql.replace("?", "%s") if params is not None else sql
+        self._cursor.execute(query, params or ())
+        return self
+
+    def executemany(self, sql, seq_of_params):
+        self._cursor.executemany(sql.replace("?", "%s"), seq_of_params)
+        return self
+
+    def fetchone(self):
+        row = self._cursor.fetchone()
+        return CompatRow(row) if row is not None else None
+
+    def fetchall(self):
+        return [CompatRow(row) for row in self._cursor.fetchall()]
+
+    def __iter__(self):
+        for row in self._cursor:
+            yield CompatRow(row)
+
+    def close(self):
+        self._cursor.close()
+
+
+class PostgresCompatConnection:
+    def __init__(self, dsn):
+        self._conn = psycopg.connect(dsn, row_factory=psycopg.rows.dict_row)
+
+    def cursor(self):
+        return PostgresCompatCursor(self._conn.cursor())
+
+    def execute(self, sql, params=None):
+        return self.cursor().execute(sql, params)
+
+    def executescript(self, script):
+        statements = [part.strip() for part in script.split(";") if part.strip()]
+        with self.cursor() as cursor:
+            for statement in statements:
+                cursor.execute(statement)
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        self._conn.rollback()
+
+    def close(self):
+        self._conn.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        if exc_type is not None:
+            self.rollback()
+        else:
+            self.commit()
+        self.close()
+
+
+PostgresCompatCursor.__enter__ = lambda self: self
+PostgresCompatCursor.__exit__ = lambda self, exc_type, exc, tb: self.close()
+
+
+def _insert_app_meta(conn, key, value):
+    conn.execute(
+        """
+        INSERT INTO app_meta (key, value, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+            value=excluded.value,
+            updated_at=excluded.updated_at
+        """,
+        (key, value, datetime.utcnow().isoformat()),
+    )
+
+
+def _reset_postgres_sequences(conn):
+    sequence_specs = [
+        ("admins", "id"),
+        ("uploaded_metrics", "id"),
+        ("county_reports", "id"),
+        ("county_documents", "id"),
+        ("ai_narratives", "id"),
+    ]
+    for table_name, column_name in sequence_specs:
+        conn.execute(
+            "SELECT setval(pg_get_serial_sequence(?, ?), COALESCE((SELECT MAX(id) FROM " + table_name + "), 1), true)",
+            (table_name, column_name),
+        )
+
+
+def _maybe_migrate_sqlite_to_postgres(conn):
+    if not USE_POSTGRES or POSTGRES_FALLBACK_ACTIVE:
+        return
+
+    marker = conn.execute("SELECT value FROM app_meta WHERE key = ?", ("sqlite_to_postgres_migrated_v1",)).fetchone()
+    if marker:
+        return
+
+    tables = ["admins", "uploaded_metrics", "county_reports", "county_documents", "ai_narratives"]
+    existing_rows = 0
+    for table_name in tables:
+        row = conn.execute(f"SELECT COUNT(*) AS total FROM {table_name}").fetchone()
+        existing_rows += int(row["total"] or 0)
+    if existing_rows > 0:
+        _insert_app_meta(conn, "sqlite_to_postgres_migrated_v1", "existing-postgres-data")
+        return
+
+    if not DB_PATH.exists():
+        _insert_app_meta(conn, "sqlite_to_postgres_migrated_v1", "no-sqlite-source")
+        return
+
+    source = sqlite3.connect(DB_PATH)
+    source.row_factory = sqlite3.Row
+    try:
+        for table_name in tables:
+            rows = source.execute(f"SELECT * FROM {table_name}").fetchall()
+            if not rows:
+                continue
+            columns = list(rows[0].keys())
+            column_sql = ", ".join(columns)
+            placeholders = ", ".join(["?"] * len(columns))
+            for row in rows:
+                conn.execute(
+                    f"INSERT INTO {table_name} ({column_sql}) VALUES ({placeholders}) ON CONFLICT (id) DO NOTHING",
+                    tuple(row[column] for column in columns),
+                )
+        _reset_postgres_sequences(conn)
+        _insert_app_meta(conn, "sqlite_to_postgres_migrated_v1", "migrated")
+    finally:
+        source.close()
+
+
 def init_db():
     with db() as conn:
-        conn.executescript(
-            """
-            CREATE TABLE IF NOT EXISTS admins (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                created_at TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS uploaded_metrics (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                country TEXT NOT NULL,
-                place_name TEXT NOT NULL,
-                sector TEXT NOT NULL,
-                risk_level TEXT,
-                gender_hotspot_score REAL,
-                vulnerability_score REAL,
-                exposure REAL,
-                sensitivity REAL,
-                adaptive_capacity REAL,
-                raw_value REAL,
-                indicators_json TEXT DEFAULT '[]',
-                source_filename TEXT,
-                updated_at TEXT NOT NULL,
-                UNIQUE(country, place_name, sector)
-            );
-            CREATE TABLE IF NOT EXISTS county_reports (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                country TEXT NOT NULL,
-                place_name TEXT NOT NULL,
-                sector TEXT,
-                title TEXT NOT NULL,
-                overview TEXT,
-                findings TEXT,
-                recommendations TEXT,
-                methodology TEXT,
-                updated_at TEXT NOT NULL,
-                UNIQUE(country, place_name, sector)
-            );
-            CREATE TABLE IF NOT EXISTS county_documents (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                country TEXT NOT NULL,
-                place_name TEXT NOT NULL,
-                sector TEXT,
-                title TEXT NOT NULL,
-                filename TEXT NOT NULL,
-                original_filename TEXT NOT NULL,
-                uploaded_at TEXT NOT NULL
-            );
-            CREATE TABLE IF NOT EXISTS ai_narratives (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                country TEXT NOT NULL,
-                place_name TEXT NOT NULL,
-                sector TEXT NOT NULL,
-                narrative_json TEXT NOT NULL,
-                image_filename TEXT,
-                image_alt TEXT,
-                generated_at TEXT NOT NULL,
-                UNIQUE(country, place_name, sector)
-            );
-            """
-        )
+        if USE_POSTGRES and not POSTGRES_FALLBACK_ACTIVE:
+            statements = [
+                """
+                CREATE TABLE IF NOT EXISTS admins (
+                    id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                    username TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                )
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS uploaded_metrics (
+                    id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                    country TEXT NOT NULL,
+                    place_name TEXT NOT NULL,
+                    sector TEXT NOT NULL,
+                    risk_level TEXT,
+                    gender_hotspot_score DOUBLE PRECISION,
+                    vulnerability_score DOUBLE PRECISION,
+                    exposure DOUBLE PRECISION,
+                    sensitivity DOUBLE PRECISION,
+                    adaptive_capacity DOUBLE PRECISION,
+                    raw_value DOUBLE PRECISION,
+                    indicators_json TEXT DEFAULT '[]',
+                    source_filename TEXT,
+                    updated_at TEXT NOT NULL,
+                    UNIQUE(country, place_name, sector)
+                )
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS county_reports (
+                    id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                    country TEXT NOT NULL,
+                    place_name TEXT NOT NULL,
+                    sector TEXT,
+                    title TEXT NOT NULL,
+                    overview TEXT,
+                    findings TEXT,
+                    recommendations TEXT,
+                    methodology TEXT,
+                    updated_at TEXT NOT NULL,
+                    UNIQUE(country, place_name, sector)
+                )
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS county_documents (
+                    id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                    country TEXT NOT NULL,
+                    place_name TEXT NOT NULL,
+                    sector TEXT,
+                    title TEXT NOT NULL,
+                    filename TEXT NOT NULL,
+                    original_filename TEXT NOT NULL,
+                    uploaded_at TEXT NOT NULL
+                )
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS ai_narratives (
+                    id INTEGER GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+                    country TEXT NOT NULL,
+                    place_name TEXT NOT NULL,
+                    sector TEXT NOT NULL,
+                    narrative_json TEXT NOT NULL,
+                    image_filename TEXT,
+                    image_alt TEXT,
+                    generated_at TEXT NOT NULL,
+                    UNIQUE(country, place_name, sector)
+                )
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS app_meta (
+                    key TEXT PRIMARY KEY,
+                    value TEXT,
+                    updated_at TEXT NOT NULL
+                )
+                """,
+            ]
+            for statement in statements:
+                conn.execute(statement)
+            _maybe_migrate_sqlite_to_postgres(conn)
+        else:
+            conn.executescript(
+                """
+                CREATE TABLE IF NOT EXISTS admins (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    password_hash TEXT NOT NULL,
+                    created_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS uploaded_metrics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    country TEXT NOT NULL,
+                    place_name TEXT NOT NULL,
+                    sector TEXT NOT NULL,
+                    risk_level TEXT,
+                    gender_hotspot_score REAL,
+                    vulnerability_score REAL,
+                    exposure REAL,
+                    sensitivity REAL,
+                    adaptive_capacity REAL,
+                    raw_value REAL,
+                    indicators_json TEXT DEFAULT '[]',
+                    source_filename TEXT,
+                    updated_at TEXT NOT NULL,
+                    UNIQUE(country, place_name, sector)
+                );
+                CREATE TABLE IF NOT EXISTS county_reports (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    country TEXT NOT NULL,
+                    place_name TEXT NOT NULL,
+                    sector TEXT,
+                    title TEXT NOT NULL,
+                    overview TEXT,
+                    findings TEXT,
+                    recommendations TEXT,
+                    methodology TEXT,
+                    updated_at TEXT NOT NULL,
+                    UNIQUE(country, place_name, sector)
+                );
+                CREATE TABLE IF NOT EXISTS county_documents (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    country TEXT NOT NULL,
+                    place_name TEXT NOT NULL,
+                    sector TEXT,
+                    title TEXT NOT NULL,
+                    filename TEXT NOT NULL,
+                    original_filename TEXT NOT NULL,
+                    uploaded_at TEXT NOT NULL
+                );
+                CREATE TABLE IF NOT EXISTS ai_narratives (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    country TEXT NOT NULL,
+                    place_name TEXT NOT NULL,
+                    sector TEXT NOT NULL,
+                    narrative_json TEXT NOT NULL,
+                    image_filename TEXT,
+                    image_alt TEXT,
+                    generated_at TEXT NOT NULL,
+                    UNIQUE(country, place_name, sector)
+                );
+                """
+            )
         count = conn.execute("SELECT COUNT(*) FROM admins").fetchone()[0]
         if count == 0:
             username = os.getenv("ADMIN_USERNAME", "admin")
