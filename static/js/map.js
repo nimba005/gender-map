@@ -671,11 +671,66 @@ function renderRiskList(records) {
   `).join("");
 }
 
+function renderCountryRecordCards(records) {
+  const grid = document.getElementById("recordGrid");
+  const intro = document.getElementById("recordsIntro");
+  const empty = document.getElementById("emptyState");
+  document.getElementById("recordsTitle").textContent = "Country workspaces";
+  intro.textContent = "Choose one of the four country workspaces below to open its detailed hotspot records, reports, documents, and AI narratives.";
+  empty.hidden = true;
+
+  const byCountry = new Map();
+  records.forEach((record) => {
+    if (!byCountry.has(record.country)) byCountry.set(record.country, []);
+    byCountry.get(record.country).push(record);
+  });
+
+  grid.innerHTML = hotspotData.countries.map((country) => {
+    const countryRecords = byCountry.get(country.country) || [];
+    const scores = countryRecords
+      .map((record) => Number(metricForRecord(record)))
+      .filter(Number.isFinite);
+    const average = scores.length
+      ? scores.reduce((sum, value) => sum + value, 0) / scores.length
+      : country.average_score;
+    const highest = countryRecords.length
+      ? countryRecords.reduce((best, record) => (Number(metricForRecord(record)) || 0) > (Number(metricForRecord(best)) || 0) ? record : best, countryRecords[0])
+      : null;
+
+    return `
+      <article class="country-record-card" data-open-country="${escapeHtml(country.country)}">
+        <div class="country-record-top">
+          <div>
+            <span class="card-kicker">${escapeHtml(country.admin_label)} workspace</span>
+            <h3>${escapeHtml(country.country)}</h3>
+          </div>
+          <i class="risk-dot" style="background:${colorForCountry(country)}"></i>
+        </div>
+        <p>${escapeHtml(country.status)}</p>
+        <div class="country-record-metrics">
+          <span>Visible records <strong>${countryRecords.length}</strong></span>
+          <span>Average score <strong>${formatScore(average)}</strong></span>
+          <span>Highest hotspot <strong>${escapeHtml(highest?.name || country.highest_hotspot || "Awaiting data")}</strong></span>
+          <span>Top sector <strong>${escapeHtml(highest?.top_sector || country.top_sector || "Awaiting data")}</strong></span>
+        </div>
+        <button class="read-more-btn" type="button" data-open-country="${escapeHtml(country.country)}">Open detailed records</button>
+      </article>
+    `;
+  }).join("");
+}
+
 function renderRecordCards(records) {
   const grid = document.getElementById("recordGrid");
   const empty = document.getElementById("emptyState");
-  document.getElementById("recordsTitle").textContent =
-    state.country === "__all__" ? "All detailed hotspot records" : `${state.country} hotspot records`;
+  const intro = document.getElementById("recordsIntro");
+
+  if (state.country === "__all__") {
+    renderCountryRecordCards(records);
+    return;
+  }
+
+  document.getElementById("recordsTitle").textContent = `${state.country} hotspot records`;
+  intro.textContent = `Detailed hotspot records for ${state.country}. Use the cards below to open county, district, or regional reports one place at a time.`;
 
   empty.hidden = records.length > 0;
   grid.innerHTML = records.map((record) => {
@@ -818,6 +873,16 @@ async function init() {
   document.getElementById("overviewReadMore").addEventListener("click", () => renderFullReport());
   document.getElementById("overviewBack").addEventListener("click", clearSelectedRecord);
   document.addEventListener("click", (event) => {
+    const countryTarget = event.target.closest("[data-open-country]");
+    if (countryTarget) {
+      state.country = countryTarget.getAttribute("data-open-country");
+      document.getElementById("countrySelect").value = state.country;
+      clearSelectedRecord();
+      applyState();
+      document.querySelector(".records-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
     const overviewTarget = event.target.closest("[data-overview-record]");
     if (overviewTarget) {
       selectRecord(overviewTarget.getAttribute("data-overview-record"), true);

@@ -328,6 +328,9 @@ main {
   position: sticky;
   top: 86px;
   padding: 20px;
+  max-height: calc(100vh - 104px);
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 .panel-heading h1 {
@@ -704,12 +707,69 @@ main {
   margin-bottom: 14px;
 }
 
+.records-header p {
+  margin: 8px 0 0;
+  max-width: 780px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
 #sortSelect {
   max-width: 230px;
 }
 
 .record-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.country-record-card {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, #f4f8f4 100%);
+  box-shadow: var(--shadow-soft);
+}
+
+.country-record-top {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.country-record-top h3 {
+  margin: 6px 0 0;
+  letter-spacing: 0;
+}
+
+.country-record-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.country-record-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.country-record-metrics span {
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.country-record-metrics strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 17px;
 }
 
 .record-card {
@@ -1233,6 +1293,11 @@ main {
   .workflow-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .control-panel {
+    max-height: none;
+    overflow: visible;
+  }
 }
 
 @media (max-width: 860px) {
@@ -1255,6 +1320,7 @@ main {
 
   .filter-stack,
   .record-grid,
+  .country-record-metrics,
   .overview-grid,
   .report-summary,
   .report-sector-grid,
