@@ -20,7 +20,7 @@ const METRIC_COPY = {
 
 const state = {
   country: "__all__",
-  sector: "Water",
+  sector: "__all__",
   metric: "gender_hotspot_score",
   risk: "__all__",
   search: "",
@@ -47,17 +47,45 @@ function formatScore(value) {
   return value == null ? "N/A" : Number(value).toFixed(1);
 }
 
+function selectedSectorLabel() {
+  return state.sector === "__all__" ? "All sectors" : state.sector;
+}
+
 function riskRank(risk) {
   return RISK_ORDER.indexOf(risk) + 1;
 }
 
+function sectorMetricValues(record, metric) {
+  return (hotspotData?.meta?.sectors || [])
+    .map((sector) => record?.metrics?.[sector]?.[metric])
+    .filter((value) => value != null && Number.isFinite(Number(value)))
+    .map(Number);
+}
+
+function aggregateMetricForRecord(record, metric) {
+  const values = sectorMetricValues(record, metric);
+  if (!values.length) return record?.composite_score ?? null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
+function sectorForDisplay(record) {
+  if (state.sector !== "__all__") return state.sector;
+  return record?.top_sector || hotspotData?.meta?.sectors?.[0] || "Water";
+}
+
 function metricForRecord(record, sector = state.sector) {
+  if (sector === "__all__") {
+    if (state.metric === "risk_level") return record?.risk_level || "No data";
+    if (state.metric === "gender_hotspot_score") return record?.composite_score ?? null;
+    return aggregateMetricForRecord(record, state.metric);
+  }
   const metrics = record?.metrics?.[sector] || {};
   if (state.metric === "risk_level") return metrics.risk_level || record.risk_level || "No data";
   return metrics[state.metric] ?? record.composite_score ?? null;
 }
 
 function riskForRecord(record, sector = state.sector) {
+  if (sector === "__all__") return record?.risk_level || "No data";
   const metrics = record?.metrics?.[sector] || {};
   return metrics.risk_level || record.risk_level || "No data";
 }
@@ -163,6 +191,7 @@ function renderCountryCards() {
       <strong>${country.country}</strong>
       <small>${country.status}</small>
       <span>${country.record_count || 0} ${country.admin_label.toLowerCase()} loaded</span>
+      <em>Open country view</em>
     </button>
   `).join("");
 
@@ -230,18 +259,19 @@ function styleCounty(feature) {
 }
 
 function popupForRecord(record) {
-  const metrics = record.metrics[state.sector] || {};
+  const activeSector = sectorForDisplay(record);
+  const metrics = record.metrics[activeSector] || {};
   const indicators = (metrics.indicators || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
   return `
     <div class="popup-card">
       <strong>${escapeHtml(record.name)}</strong>
-      <span>${escapeHtml(state.sector)} - ${escapeHtml(riskForRecord(record))}</span>
+      <span>${escapeHtml(selectedSectorLabel())} - ${escapeHtml(riskForRecord(record))}</span>
       <dl>
-        <dt>Hotspot score</dt><dd>${formatScore(metrics.gender_hotspot_score)}</dd>
+        <dt>${state.sector === "__all__" ? "Composite score" : "Hotspot score"}</dt><dd>${formatScore(metricForRecord(record))}</dd>
+        <dt>Reference sector</dt><dd>${escapeHtml(activeSector)}</dd>
         <dt>Vulnerability</dt><dd>${formatScore(metrics.vulnerability_score)}</dd>
         <dt>Exposure</dt><dd>${formatScore(metrics.exposure)}</dd>
         <dt>Sensitivity</dt><dd>${formatScore(metrics.sensitivity)}</dd>
-        <dt>Adaptive capacity</dt><dd>${formatScore(metrics.adaptive_capacity)}</dd>
       </dl>
       <ul>${indicators}</ul>
       <button class="popup-action" type="button" data-overview-record="${escapeHtml(record.name)}">Open overview</button>
@@ -321,6 +351,20 @@ function listItems(items) {
 }
 
 function aiNarrativeSections(record) {
+  if (state.sector === "__all__") {
+    return `
+      <article class="ai-narrative-card">
+        <div>
+          <span class="card-kicker">AI insight brief</span>
+          <h3>Select a sector to generate an AI narrative</h3>
+          <p>
+            AI narrative generation is available for a specific sector. Switch from <strong>All sectors</strong>
+            to Water, Energy, or Agriculture to generate or review the narrative for ${escapeHtml(record.name)}.
+          </p>
+        </div>
+      </article>
+    `;
+  }
   const ai = record.ai_narratives?.[state.sector];
   if (!ai) {
     return `
@@ -406,13 +450,16 @@ function selectRecord(recordName, shouldScroll = true) {
   if (!record) return;
   selectedRecord = record;
 
-  const metrics = record.metrics[state.sector] || {};
+  const activeSector = sectorForDisplay(record);
+  const metrics = record.metrics[activeSector] || {};
   const overview = document.getElementById("countyOverview");
   document.getElementById("overviewKicker").textContent = `${record.country} county overview`;
   document.getElementById("overviewTitle").textContent = record.name;
   document.getElementById("overviewScore").textContent = formatScore(metricForRecord(record));
   document.getElementById("overviewSummary").textContent =
-    `${record.name} is currently classified as ${riskForRecord(record)} for ${state.sector}. The overview below highlights the selected sector, while the full report compares all sectors for this county.`;
+    state.sector === "__all__"
+      ? `${record.name} is currently classified as ${riskForRecord(record)} overall. The overview uses the composite county picture and highlights ${activeSector} as the strongest current sector signal.`
+      : `${record.name} is currently classified as ${riskForRecord(record)} for ${state.sector}. The overview below highlights the selected sector, while the full report compares all sectors for this county.`;
 
   document.getElementById("overviewGrid").innerHTML = `
     <article><span>Risk level</span><strong>${escapeHtml(riskForRecord(record))}</strong></article>
@@ -473,7 +520,7 @@ function renderFullReport(record = selectedRecord) {
       <article><span>Composite score</span><strong>${formatScore(record.composite_score)}</strong></article>
       <article><span>Composite risk</span><strong>${escapeHtml(record.risk_level)}</strong></article>
       <article><span>Highest pressure sector</span><strong>${escapeHtml(record.top_sector || "N/A")}</strong></article>
-      <article><span>Selected sector</span><strong>${escapeHtml(state.sector)}</strong></article>
+      <article><span>Selected sector</span><strong>${escapeHtml(selectedSectorLabel())}</strong></article>
     </div>
     <div class="report-reading-grid">
       ${adminReportSections(record)}
@@ -632,20 +679,21 @@ function renderRecordCards(records) {
 
   empty.hidden = records.length > 0;
   grid.innerHTML = records.map((record) => {
-    const metrics = record.metrics[state.sector] || {};
+    const activeSector = sectorForDisplay(record);
+    const metrics = record.metrics[activeSector] || {};
     const indicators = (metrics.indicators || []).slice(0, 3).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
     return `
       <article class="record-card ${selectedRecord?.name === record.name ? "is-selected" : ""}" data-record-name="${escapeHtml(record.name)}">
         <div class="record-top">
           <div>
-            <span class="card-kicker">${escapeHtml(record.country)} - ${escapeHtml(state.sector)}</span>
+            <span class="card-kicker">${escapeHtml(record.country)} - ${escapeHtml(selectedSectorLabel())}</span>
             <h3>${escapeHtml(record.name)}</h3>
           </div>
           <strong style="color:${colorForRecord(record)}">${formatScore(metricForRecord(record))}</strong>
         </div>
         <div class="record-meta">
           <span>${escapeHtml(riskForRecord(record))}</span>
-          <span>Top pressure: ${escapeHtml(record.top_sector || "N/A")}</span>
+          <span>${state.sector === "__all__" ? `Reference sector: ${escapeHtml(activeSector)}` : `Top pressure: ${escapeHtml(record.top_sector || "N/A")}`}</span>
         </div>
         <div class="mini-grid">
           <span>Exposure <strong>${formatScore(metrics.exposure)}</strong></span>
@@ -668,9 +716,26 @@ function renderLegend() {
 function renderMetricNote() {
   const country = state.country === "__all__" ? "All countries" : state.country;
   document.getElementById("metricNote").innerHTML = `
-    <strong>${country} - ${state.sector}</strong>
+    <strong>${country} - ${selectedSectorLabel()}</strong>
     <p>${METRIC_COPY[state.metric]}</p>
   `;
+}
+
+function resetFilters() {
+  state.country = "__all__";
+  state.sector = "__all__";
+  state.metric = "gender_hotspot_score";
+  state.risk = "__all__";
+  state.search = "";
+  state.sort = "score_desc";
+  document.getElementById("countrySelect").value = state.country;
+  document.getElementById("sectorSelect").value = state.sector;
+  document.getElementById("metricSelect").value = state.metric;
+  document.getElementById("riskSelect").value = state.risk;
+  document.getElementById("searchInput").value = "";
+  document.getElementById("sortSelect").value = state.sort;
+  clearSelectedRecord();
+  applyState();
 }
 
 function applyState() {
@@ -700,6 +765,10 @@ function applyState() {
 }
 
 async function init() {
+  const params = new URLSearchParams(window.location.search);
+  const requestedCountry = params.get("country");
+  const requestedSector = params.get("sector");
+
   initMap();
   const [data, geojson] = await Promise.all([
     fetch("/api/hotspot-data").then((res) => res.json()),
@@ -708,8 +777,15 @@ async function init() {
   hotspotData = data;
   kenyaGeojson = geojson;
 
+  if (requestedCountry && hotspotData.meta.countries.includes(requestedCountry)) {
+    state.country = requestedCountry;
+  }
+  if (requestedSector && [...hotspotData.meta.sectors, "__all__"].includes(requestedSector)) {
+    state.sector = requestedSector;
+  }
+
   buildOptions(document.getElementById("countrySelect"), hotspotData.meta.countries, "All study countries");
-  buildOptions(document.getElementById("sectorSelect"), hotspotData.meta.sectors, null);
+  buildOptions(document.getElementById("sectorSelect"), hotspotData.meta.sectors, "All sectors");
   document.getElementById("countrySelect").value = state.country;
   document.getElementById("sectorSelect").value = state.sector;
   document.getElementById("metricSelect").value = state.metric;
@@ -738,6 +814,7 @@ async function init() {
     state.sort = event.target.value;
     applyState();
   });
+  document.getElementById("resetFilters").addEventListener("click", resetFilters);
   document.getElementById("overviewReadMore").addEventListener("click", () => renderFullReport());
   document.getElementById("overviewBack").addEventListener("click", clearSelectedRecord);
   document.addEventListener("click", (event) => {

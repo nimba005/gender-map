@@ -38,8 +38,43 @@
   </main>
 
   <footer class="site-footer">
-    <span>AGNES Gender Hotspot Map</span>
-    <span>Kenya, Uganda, Botswana, and Ghana study workspace</span>
+    <div class="footer-grid">
+      <section class="footer-block">
+        <div class="footer-brand">
+          <span class="brand-mark">A</span>
+          <div>
+            <strong>AGNES Gender Hotspot Map</strong>
+            <small>Climate change and gender vulnerability hotspot intelligence</small>
+          </div>
+        </div>
+        <p>
+          A regional evidence workspace for reviewing climate and gender vulnerability hotspots
+          across Kenya, Uganda, Botswana, and Ghana.
+        </p>
+      </section>
+
+      <section class="footer-block">
+        <strong>Workspace</strong>
+        <a href="{{ url_for('home') }}">Overview</a>
+        <a href="{{ url_for('map_page') }}">Interactive map</a>
+        <a href="{{ url_for('admin_dashboard') if session.get('admin_id') else url_for('admin_login') }}">Admin area</a>
+      </section>
+
+      <section class="footer-block">
+        <strong>Coverage</strong>
+        <span>Kenya county hotspot data</span>
+        <span>Uganda study layer</span>
+        <span>Botswana study layer</span>
+        <span>Ghana regional study layer</span>
+      </section>
+
+      <section class="footer-block">
+        <strong>Use case</strong>
+        <span>Gender-responsive climate planning</span>
+        <span>Hotspot prioritization</span>
+        <span>Research, policy, and programme support</span>
+      </section>
+    </div>
   </footer>
 
   {% block body_scripts %}{% endblock %}

@@ -55,22 +55,34 @@
 </section>
 
 <section class="country-strip">
-  <article>
+  <a class="country-link-card country-link-card-active" href="{{ url_for('map_page') }}?country=Kenya">
+    <span class="card-kicker">Live country workspace</span>
     <strong>Kenya</strong>
     <span>County polygons and sector metrics loaded</span>
-  </article>
-  <article>
+    <small>Open the Kenya hotspot map and review county data by sector, score, and risk class.</small>
+    <em>Open country overview map</em>
+  </a>
+  <a class="country-link-card" href="{{ url_for('map_page') }}?country=Uganda">
+    <span class="card-kicker">Study layer</span>
     <strong>Uganda</strong>
     <span>Country study layer ready for district data</span>
-  </article>
-  <article>
+    <small>Use the country view now and activate district-level hotspot detail when the dataset is uploaded.</small>
+    <em>Open country overview map</em>
+  </a>
+  <a class="country-link-card" href="{{ url_for('map_page') }}?country=Botswana">
+    <span class="card-kicker">Study layer</span>
     <strong>Botswana</strong>
     <span>Country study layer ready for district data</span>
-  </article>
-  <article>
+    <small>Review the national hotspot workspace and prepare for district-level uploads and analysis.</small>
+    <em>Open country overview map</em>
+  </a>
+  <a class="country-link-card" href="{{ url_for('map_page') }}?country=Ghana">
+    <span class="card-kicker">Study layer</span>
     <strong>Ghana</strong>
     <span>Country study layer ready for regional data</span>
-  </article>
+    <small>Start from the Ghana country layer and move into regional hotspot analysis when records are added.</small>
+    <em>Open country overview map</em>
+  </a>
 </section>
 
 <section class="workflow-section">
