@@ -1993,3 +1993,114 @@ main {
   right: 8px;
   color: var(--muted);
 }
+
+/* ---------- Sector profile: solid score bars on a shared 0-100 scale ---------- */
+.bar-chart {
+  gap: 4px;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 12px;
+  font-weight: 600;
+}
+
+.bar-row .bar-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.bar-row .bar-name {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.bar-row .bar-risk {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.bar-row .bar-risk i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.bar-row strong {
+  min-width: 44px;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 800;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.bar-row .bar-track {
+  position: relative;
+  display: block;
+  height: 10px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #e6ece8;
+}
+
+.bar-row .bar-track i {
+  display: block;
+  height: 100%;
+  border-radius: 0 3px 3px 0;
+  background: #1f6f52;
+  transition: width 0.35s ease;
+}
+
+.bar-row:hover .bar-track i,
+.bar-row.is-active .bar-track i {
+  background: #17573f;
+}
+
+.bar-row .bar-track b {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: #fff;
+}
+
+.bar-axis {
+  position: relative;
+  height: 16px;
+  margin: 0 13px;
+}
+
+.bar-axis span {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bar-axis span:first-child {
+  transform: none;
+}
+
+.bar-axis span:last-child {
+  transform: translateX(-100%);
+}
+
+.bar-axis-note {
+  margin: 6px 13px 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}

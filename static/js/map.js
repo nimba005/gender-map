@@ -1199,18 +1199,35 @@ function renderSectorChart(records) {
     return { sector, average, count: sectorRecords.length, highest, topRisk: highest?.metrics?.[sector]?.risk_level || "No data" };
   });
 
-  container.innerHTML = rows.map(({ sector, average, count, highest, topRisk }) => `
+  const thresholds = [20, 40, 60, 75];
+  const riskOfScore = (score) => score == null ? "No data"
+    : score >= 75 ? "Very High" : score >= 60 ? "High" : score >= 40 ? "Medium" : score >= 20 ? "Low" : "Very Low";
+  const ticks = thresholds.map((value) => `<b style="left:${value}%"></b>`).join("");
+
+  container.innerHTML = rows.map(({ sector, average, count, highest, topRisk }) => {
+    const risk = riskOfScore(average);
+    return `
     <button class="bar-row interactive-chart-row ${state.sector === sector ? "is-active" : ""}" type="button"
       data-sector-chart="${escapeHtml(sector)}"
       data-average="${average == null ? "" : Number(average).toFixed(1)}"
       data-count="${count}"
       data-highest="${escapeHtml(highest?.name || "No visible record")}"
-      data-risk="${escapeHtml(topRisk)}">
-      <span>${sector}</span>
-      <div class="bar-track"><i style="width:${average || 0}%"></i></div>
-      <strong>${formatScore(average)}</strong>
+      data-risk="${escapeHtml(topRisk)}"
+      aria-label="${escapeHtml(sector)}: average score ${formatScore(average)}, ${escapeHtml(risk)} risk">
+      <span class="bar-head">
+        <span class="bar-name">${escapeHtml(sector)}</span>
+        <span class="bar-risk"><i style="background:${RISK_COLORS[risk] || RISK_COLORS["No data"]}"></i>${escapeHtml(risk)}</span>
+        <strong>${formatScore(average)}</strong>
+      </span>
+      <span class="bar-track"><i style="width:${Math.max(0, Math.min(100, average || 0))}%"></i>${ticks}</span>
     </button>
-  `).join("");
+  `;
+  }).join("") + `
+    <div class="bar-axis" aria-hidden="true">
+      ${[0, ...thresholds, 100].map((value) => `<span style="left:${value}%">${value}</span>`).join("")}
+    </div>
+    <p class="bar-axis-note">Score from 0 to 100. Marks show where the risk classes change: Low from 20, Medium from 40, High from 60, Very High from 75.</p>
+  `;
 
   const first = rows.find((row) => row.sector === state.sector) || rows[0];
   if (detail) {
