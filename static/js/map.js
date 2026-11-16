@@ -45,7 +45,12 @@ let boundaries = {};
 let map;
 let countyLayer;
 let markerLayer;
+let maskLayer;
+let outlineLayer;
+let countryOutlines = null;
 let selectedRecord = null;
+
+const WORLD_RING = [[-89, -540], [-89, 540], [89, 540], [89, -540]];
 
 const PAGE_SIZE = 24;
 let visibleLimit = PAGE_SIZE;
@@ -220,7 +225,60 @@ function initMap() {
 
   map._usingGoogleBasemap = Boolean(L.gridLayer?.googleMutant && window.google?.maps);
   L.control.layers(baseLayers, null, { collapsed: true }).addTo(map);
+
+  // Stacking: basemap < focus mask < places < country markers < tooltips and popups.
+  map.createPane("focusMask").style.zIndex = 350;
+  map.getPane("focusMask").style.pointerEvents = "none";
+  map.createPane("countryMarkers").style.zIndex = 450;
   markerLayer = L.layerGroup().addTo(map);
+}
+
+// Outer rings ([lat, lng]) of the countries that stay lit: national outlines when available,
+// otherwise every sub-national unit.
+function focusRings(countries) {
+  const rings = [];
+  const addGeometry = (geometry) => {
+    if (!geometry) return;
+    const polygons = geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
+    polygons.forEach((polygon) => rings.push(polygon[0].map(([lng, lat]) => [lat, lng])));
+  };
+  countries.forEach((country) => {
+    const outline = countryOutlines?.features.find((feature) => feature.properties.country === country);
+    if (outline) {
+      addGeometry(outline.geometry);
+    } else {
+      (boundaries[country]?.features || []).forEach((feature) => addGeometry(feature.geometry));
+    }
+  });
+  return rings;
+}
+
+// Dims everything outside the study countries (or outside the selected country).
+function renderFocusMask() {
+  if (maskLayer) map.removeLayer(maskLayer);
+  if (outlineLayer) map.removeLayer(outlineLayer);
+  maskLayer = outlineLayer = null;
+
+  const countries = state.country === "__all__" ? hotspotData.meta.countries : [state.country];
+  const rings = focusRings(countries);
+  if (!rings.length) return;
+
+  maskLayer = L.polygon([WORLD_RING, ...rings], {
+    pane: "focusMask",
+    stroke: false,
+    fillColor: "#06140f",
+    fillOpacity: 0.74,
+    fillRule: "evenodd",
+    interactive: false
+  }).addTo(map);
+
+  outlineLayer = L.polyline(rings.map((ring) => [...ring, ring[0]]), {
+    pane: "focusMask",
+    color: "#ffffff",
+    weight: 1.6,
+    opacity: 0.9,
+    interactive: false
+  }).addTo(map);
 }
 
 function countryByName(name) {
@@ -268,6 +326,7 @@ function renderCountryMarkers() {
   if (state.country !== "__all__") return;
   hotspotData.countries.forEach((country) => {
     const marker = L.circleMarker(country.center, {
+      pane: "countryMarkers",
       radius: 9,
       color: "#ffffff",
       weight: 2,
@@ -297,31 +356,86 @@ function recordForFeature(feature) {
 
 function styleCounty(feature) {
   const record = recordForFeature(feature);
+  const isSelected = Boolean(record && selectedRecord && recordKey(record) === recordKey(selectedRecord));
   return {
-    color: "#ffffff",
-    weight: 1,
+    color: isSelected ? "#0f172a" : "#ffffff",
+    weight: isSelected ? 2.6 : 1,
     fillColor: record ? colorForRecord(record) : RISK_COLORS["No data"],
-    fillOpacity: record ? 0.78 : 0.2
+    fillOpacity: record ? (isSelected ? 0.92 : 0.8) : 0.2
   };
 }
 
+function refreshCountyStyles() {
+  if (countyLayer) countyLayer.setStyle(styleCounty);
+}
+
+function popupBar(label, value, tone) {
+  const number = Number(value);
+  const width = Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : 0;
+  return `
+    <div class="popup-bar">
+      <span>${escapeHtml(label)}</span>
+      <div class="popup-bar-track"><i class="tone-${tone}" style="width:${width}%"></i></div>
+      <b>${formatScore(value)}</b>
+    </div>
+  `;
+}
+
+// Small card that follows the pointer while hovering a place.
+function hoverCardForRecord(record) {
+  const risk = riskForRecord(record);
+  return `
+    <div class="hover-card">
+      <span class="hover-swatch" style="background:${colorForRecord(record)}"></span>
+      <div>
+        <strong>${escapeHtml(record.name)}</strong>
+        <small>${escapeHtml(record.country)} &middot; ${escapeHtml(selectedSectorLabel())}</small>
+      </div>
+      <div class="hover-score">
+        <b>${formatScore(state.metric === "risk_level" ? (state.sector === "__all__" ? record.composite_score : record.metrics?.[state.sector]?.gender_hotspot_score) : metricForRecord(record))}</b>
+        <small>${escapeHtml(state.metric === "risk_level" || state.metric === "gender_hotspot_score" ? risk : metricLabel(state.metric))}</small>
+      </div>
+      <em>Click for overview</em>
+    </div>
+  `;
+}
+
+// Overview shown when a place is clicked; "Read more" opens the full report below the map.
 function popupForRecord(record) {
   const activeSector = sectorForDisplay(record);
   const metrics = record.metrics[activeSector] || {};
-  const indicators = (metrics.indicators || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  const risk = riskForRecord(record);
+  const color = RISK_COLORS[risk] || RISK_COLORS["No data"];
+  const indicators = (metrics.indicators || []).slice(0, 2).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+  const key = escapeHtml(recordKey(record));
   return `
     <div class="popup-card">
-      <strong>${escapeHtml(record.name)}</strong>
-      <span>${escapeHtml(record.country)} - ${escapeHtml(selectedSectorLabel())} - ${escapeHtml(riskForRecord(record))}</span>
-      <dl>
-        <dt>${state.sector === "__all__" ? "Composite score" : "Hotspot score"}</dt><dd>${formatScore(metricForRecord(record))}</dd>
-        <dt>Reference sector</dt><dd>${escapeHtml(activeSector)}</dd>
-        <dt>Vulnerability</dt><dd>${formatScore(metrics.vulnerability_score)}</dd>
-        <dt>Exposure</dt><dd>${formatScore(metrics.exposure)}</dd>
-        <dt>Sensitivity</dt><dd>${formatScore(metrics.sensitivity)}</dd>
-      </dl>
-      <ul>${indicators}</ul>
-      <button class="popup-action" type="button" data-overview-record="${escapeHtml(recordKey(record))}">Open overview</button>
+      <div class="popup-head">
+        <div>
+          <span class="popup-kicker">${escapeHtml(record.country)} &middot; ${escapeHtml(placeLabel(record.country))}</span>
+          <strong>${escapeHtml(record.name)}</strong>
+        </div>
+        <div class="popup-score" style="background:${color}">
+          <b>${formatScore(state.sector === "__all__" ? record.composite_score : metrics.gender_hotspot_score)}</b>
+          <small>${escapeHtml(risk)}</small>
+        </div>
+      </div>
+      <p class="popup-meta">
+        ${state.sector === "__all__" ? "Composite across sectors" : `${escapeHtml(state.sector)} sector`}
+        &middot; strongest pressure: <b>${escapeHtml(record.top_sector || activeSector)}</b>
+      </p>
+      <div class="popup-bars" aria-label="${escapeHtml(activeSector)} components">
+        ${popupBar("Exposure", metrics.exposure, "risk")}
+        ${popupBar("Sensitivity", metrics.sensitivity, "risk")}
+        ${popupBar("Adaptive capacity", metrics.adaptive_capacity, "good")}
+        ${popupBar("Vulnerability", metrics.vulnerability_score, "risk")}
+      </div>
+      ${indicators ? `<ul>${indicators}</ul>` : ""}
+      ${record.data_status === "illustrative" ? '<p class="popup-flag">Illustrative placeholder figures</p>' : ""}
+      <button class="popup-action" type="button" data-read-record="${key}">
+        Read more
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
     </div>
   `;
 }
@@ -870,6 +984,7 @@ function selectRecord(key, shouldScroll = true) {
     card.classList.toggle("is-selected", card.dataset.recordName === recordKey(record));
   });
 
+  refreshCountyStyles();
   if (shouldScroll) {
     overview.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -888,6 +1003,8 @@ function clearSelectedRecord() {
   document.getElementById("fullReport")?.remove();
   setDetailMode(false);
   document.querySelectorAll(".record-card").forEach((card) => card.classList.remove("is-selected"));
+  refreshCountyStyles();
+  map.closePopup();
   document.querySelector(".records-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
   syncUrl();
 }
@@ -991,11 +1108,28 @@ function renderCountyLayer() {
     onEachFeature(feature, layer) {
       const record = recordForFeature(feature);
       if (!record) return;
-      layer.bindPopup(() => popupForRecord(record));
-      layer.bindTooltip(escapeHtml(`${record.name}: ${formatScoreOrRisk(record)}`), { sticky: true });
-      layer.on("click", () => selectRecord(recordKey(record), false));
-      layer.on("mouseover", () => layer.setStyle({ weight: 2.5, color: "#111827" }));
-      layer.on("mouseout", () => countyLayer && countyLayer.resetStyle(layer));
+      layer.bindPopup(() => popupForRecord(record), { className: "place-popup", maxWidth: 320, minWidth: 270 });
+      layer.bindTooltip(() => hoverCardForRecord(record), {
+        sticky: true,
+        direction: "top",
+        offset: [0, -14],
+        opacity: 1,
+        className: "place-tooltip"
+      });
+      layer.on("click", () => {
+        layer.closeTooltip();
+        selectRecord(recordKey(record), false);
+      });
+      layer.on("mouseover", () => {
+        layer.setStyle({ weight: 3, color: "#ffffff", fillOpacity: 0.97 });
+        layer.bringToFront();
+        layer.getElement()?.classList.add("is-hovered");
+      });
+      layer.on("mouseout", () => {
+        layer.getElement()?.classList.remove("is-hovered");
+        if (countyLayer) countyLayer.resetStyle(layer);
+      });
+      layer.on("add", () => layer.getElement()?.classList.add("place-shape"));
     }
   }).addTo(map);
 }
@@ -1397,8 +1531,8 @@ function applyState() {
   }
   renderCountryCards();
   renderCountryMarkers();
+  renderFocusMask();
   renderCountyLayer();
-  markerLayer.eachLayer((layer) => layer.bringToFront());
   fitMap();
   renderSummary(records);
   renderSectorChart(records);
@@ -1440,6 +1574,13 @@ async function init() {
       console.warn(`Boundaries for ${country.country} could not be loaded:`, error);
     }
   }));
+
+  try {
+    const response = await fetch("/data/study_countries.geojson");
+    if (response.ok) countryOutlines = await response.json();
+  } catch (error) {
+    console.warn("Country outlines could not be loaded; using sub-national boundaries for the focus mask.", error);
+  }
 
   if (requestedCountry && hotspotData.meta.countries.includes(requestedCountry)) {
     state.country = requestedCountry;
@@ -1544,6 +1685,7 @@ async function init() {
     const readTarget = event.target.closest("[data-read-record]");
     if (readTarget) {
       const name = readTarget.getAttribute("data-read-record");
+      map.closePopup();
       selectRecord(name, true);
       renderFullReport(recordByKey(name));
       return;

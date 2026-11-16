@@ -9,6 +9,10 @@ Source: geoBoundaries (https://www.geoboundaries.org), simplified GeoJSON releas
 Usage:
     python tools/prepare_boundaries.py                # download from geoBoundaries
     python tools/prepare_boundaries.py --from-dir X   # use already-downloaded files in X
+    python tools/prepare_boundaries.py --outlines-only  # only rebuild the national outlines
+
+Also writes data/study_countries.geojson: one simplified national outline per country
+(gbOpen ADM0), used by the map to dim everything outside the study countries.
 
 Output files in data/ use the same property layout the map expects:
     {"country": ..., "name": ..., "source_name": ..., "shape_id": ...}
@@ -99,10 +103,73 @@ def load_source(spec, from_dir):
         return json.loads(response.read().decode("utf-8"))
 
 
+def simplify_ring(ring, tolerance):
+    """Douglas-Peucker simplification of a closed ring (iterative, no dependencies)."""
+    points = ring[:-1] if ring[0] == ring[-1] else ring
+    if len(points) < 4:
+        return ring
+    keep = [False] * len(points)
+    keep[0] = keep[-1] = True
+    stack = [(0, len(points) - 1)]
+    while stack:
+        start, end = stack.pop()
+        (x1, y1), (x2, y2) = points[start], points[end]
+        dx, dy = x2 - x1, y2 - y1
+        length = (dx * dx + dy * dy) ** 0.5
+        worst, index = 0.0, None
+        for i in range(start + 1, end):
+            x, y = points[i]
+            if length:
+                distance = abs(dy * (x - x1) - dx * (y - y1)) / length
+            else:
+                distance = ((x - x1) ** 2 + (y - y1) ** 2) ** 0.5
+            if distance > worst:
+                worst, index = distance, i
+        if index is not None and worst > tolerance:
+            keep[index] = True
+            stack.extend([(start, index), (index, end)])
+    out = [point for point, flag in zip(points, keep) if flag]
+    return out + [out[0]]
+
+
+def ring_area(ring):
+    return abs(sum(x1 * y2 - x2 * y1 for (x1, y1), (x2, y2) in zip(ring, ring[1:]))) / 2
+
+
+def write_outlines(from_dir, tolerance=0.003, min_area=0.0004):
+    """National outlines (outer rings only) for the focus mask on the map."""
+    features = []
+    for country, spec in SOURCES.items():
+        adm0 = {"release": "gbOpen", "iso": spec["iso"], "level": "ADM0"}
+        raw = load_source(adm0, from_dir)
+        polygons = []
+        for feature in raw["features"]:
+            for polygon in round_geometry(feature["geometry"])["coordinates"]:
+                outer = round_ring(simplify_ring(polygon[0], tolerance))
+                if len(outer) >= 4 and ring_area(outer) >= min_area:
+                    polygons.append([outer])
+        features.append({
+            "type": "Feature",
+            "properties": {"country": country, "source": "geoBoundaries gbOpen ADM0"},
+            "geometry": {"type": "MultiPolygon", "coordinates": polygons},
+        })
+    output = DATA_DIR / "study_countries.geojson"
+    output.write_text(
+        json.dumps({"type": "FeatureCollection", "name": "study_countries", "features": features}, separators=(",", ":")),
+        encoding="utf-8",
+    )
+    print(f"Outlines: {len(features)} countries -> {output} ({output.stat().st_size // 1024} KB)")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--from-dir", help="Folder holding files named like gbOpen-GHA-ADM1.geojson")
+    parser.add_argument("--outlines-only", action="store_true", help="Only rebuild data/study_countries.geojson")
     args = parser.parse_args()
+
+    write_outlines(args.from_dir)
+    if args.outlines_only:
+        return
 
     for country, spec in SOURCES.items():
         raw = load_source(spec, args.from_dir)

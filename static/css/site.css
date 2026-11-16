@@ -1750,3 +1750,246 @@ main {
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------- Map: focus mask, hover lift, overview popup ---------- */
+.map .leaflet-container,
+.map.leaflet-container {
+  background: #0b1f18;
+}
+
+.place-shape {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.18s ease, filter 0.18s ease, fill-opacity 0.18s ease;
+  cursor: pointer;
+}
+
+.place-shape.is-hovered {
+  transform: scale(1.045);
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .place-shape {
+    transition: none;
+  }
+
+  .place-shape.is-hovered {
+    transform: none;
+  }
+}
+
+.leaflet-tooltip.place-tooltip {
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: #0f1f1a;
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  white-space: normal;
+}
+
+.leaflet-tooltip.place-tooltip::before {
+  border-top-color: #0f1f1a;
+}
+
+.hover-card {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 4px 10px;
+  min-width: 210px;
+  white-space: nowrap;
+  padding: 10px 12px;
+  font-family: inherit;
+}
+
+.hover-swatch {
+  width: 10px;
+  height: 34px;
+  border-radius: 5px;
+}
+
+.hover-card strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.hover-card small {
+  display: block;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: 11.5px;
+}
+
+.hover-score {
+  text-align: right;
+}
+
+.hover-score b {
+  display: block;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.hover-card em {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
+  color: #f5c84c;
+  font-size: 11.5px;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.place-popup .leaflet-popup-content-wrapper {
+  padding: 0;
+  border-radius: 14px;
+  box-shadow: 0 18px 44px rgba(6, 20, 15, 0.35);
+}
+
+.place-popup .leaflet-popup-content {
+  margin: 0;
+  width: auto !important;
+}
+
+.place-popup .popup-card {
+  width: min(300px, calc(100vw - 96px));
+  min-width: 0;
+  padding: 16px;
+}
+
+.popup-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-right: 18px;
+}
+
+.popup-card .popup-kicker {
+  margin: 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.popup-head strong {
+  margin-top: 2px;
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.popup-score {
+  flex: none;
+  min-width: 68px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  color: #fff;
+  text-align: center;
+}
+
+.popup-score b {
+  display: block;
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.popup-score small {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.popup-card .popup-meta {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+}
+
+.popup-card .popup-meta b {
+  color: var(--ink);
+}
+
+.popup-bars {
+  display: grid;
+  gap: 7px;
+  margin-top: 12px;
+}
+
+.popup-bar {
+  display: grid;
+  grid-template-columns: 108px 1fr 34px;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+
+.popup-card .popup-bar span {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.popup-bar-track {
+  height: 7px;
+  border-radius: 99px;
+  background: #e8eeea;
+  overflow: hidden;
+}
+
+.popup-bar-track i {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+}
+
+.popup-bar-track .tone-risk {
+  background: #e2703a;
+}
+
+.popup-bar-track .tone-good {
+  background: #1f9d6b;
+}
+
+.popup-bar b {
+  text-align: right;
+  font-weight: 700;
+}
+
+.place-popup .popup-card ul {
+  margin: 12px 0 0 16px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.popup-card .popup-flag {
+  margin: 10px 0 0;
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: #fff7e0;
+  color: #8a5a00;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.place-popup .popup-action {
+  width: 100%;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.place-popup a.leaflet-popup-close-button {
+  top: 8px;
+  right: 8px;
+  color: var(--muted);
+}

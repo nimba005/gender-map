@@ -58,7 +58,7 @@ Uploads and the database are kept in named volumes.
 
 | Step | Command | Output |
 |---|---|---|
-| Boundaries (geoBoundaries) | `python tools/prepare_boundaries.py` | `data/*_counties|districts|regions.geojson` |
+| Boundaries and national outlines (geoBoundaries) | `python tools/prepare_boundaries.py` | `data/*_counties|districts|regions.geojson`, `data/study_countries.geojson` |
 | Placeholder indicators | `python tools/generate_illustrative_indicators.py` | `data/source/*_indicators.csv` |
 | Scores | `python tools/build_hotspot_data.py` | `data/hotspot_data.json` |
 | Home page outlines | `python tools/build_hero_shapes.py` | `data/hero_shapes.json` |
