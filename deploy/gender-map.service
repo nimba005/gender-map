@@ -1,0 +1,15 @@
+[Unit]
+Description=AGNES Gender Hotspot Map (Flask/gunicorn)
+After=network-online.target postgresql.service redis-server.service
+Wants=network-online.target postgresql.service redis-server.service
+
+[Service]
+User=spm
+Group=spm
+WorkingDirectory=/home/spm/gender-map
+ExecStart=/home/spm/gender-map/.venv/bin/gunicorn --preload --workers=2 --threads=4 --timeout=180 --bind=127.0.0.1:8010 --forwarded-allow-ips=127.0.0.1 app:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

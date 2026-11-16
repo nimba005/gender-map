@@ -20,3 +20,7 @@ uploads/
 
 # Large data files
 data/africa_countries.geojson
+
+# Docker env files (keep the example)
+.env.*
+!.env.docker.example

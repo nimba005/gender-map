@@ -1,6 +1,16 @@
+"""Build data/hotspot_data.json for all four study countries.
+
+Kenya     : read from the three sector workbooks in ~/Downloads when they are present,
+            otherwise the Kenya records already in hotspot_data.json are kept.
+Uganda, Botswana, Ghana : read from data/source/<country>_indicators.csv
+            (see tools/generate_illustrative_indicators.py for the placeholder tables).
+
+Usage:
+    python tools/build_hotspot_data.py
+"""
+import csv
 import json
 import math
-import os
 import zipfile
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -9,6 +19,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DOWNLOADS = Path.home() / "Downloads"
 DATA_DIR = ROOT / "data"
+SOURCE_DIR = DATA_DIR / "source"
+OUTPUT = DATA_DIR / "hotspot_data.json"
 
 NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 
@@ -25,32 +37,48 @@ COUNTRY_PROFILES = {
         "status": "County data loaded",
         "study_note": "County-level gender hotspot metrics were generated from the supplied water, energy, and agriculture workbooks.",
         "admin_label": "Counties",
-        "geometry_file": "kenya_districts.geojson",
+        "place_label": "County",
+        "geometry_file": "kenya_counties.geojson",
+        "illustrative": False,
     },
     "Uganda": {
         "center": [1.3733, 32.2903],
-        "zoom": 6,
-        "status": "Country study layer",
-        "study_note": "The dashboard is prepared for Uganda district data. Add Uganda sector workbooks or GeoJSON to activate district-level polygons.",
+        "zoom": 7,
+        "status": "Illustrative district data",
+        "study_note": "District figures are illustrative placeholders modelled from sub-regional profiles. Replace them with the Uganda sector workbooks from the admin dashboard.",
         "admin_label": "Districts",
-        "geometry_file": None,
+        "place_label": "District",
+        "geometry_file": "uganda_districts.geojson",
+        "illustrative": True,
     },
     "Botswana": {
         "center": [-22.3285, 24.6849],
         "zoom": 6,
-        "status": "Country study layer",
-        "study_note": "The dashboard is prepared for Botswana district data. Add Botswana sector workbooks or GeoJSON to activate district-level polygons.",
+        "status": "Illustrative district data",
+        "study_note": "District figures are illustrative placeholders based on approximate district profiles. Replace them with the Botswana sector workbooks from the admin dashboard.",
         "admin_label": "Districts",
-        "geometry_file": None,
+        "place_label": "District",
+        "geometry_file": "botswana_districts.geojson",
+        "illustrative": True,
     },
     "Ghana": {
         "center": [7.9465, -1.0232],
-        "zoom": 6,
-        "status": "Country study layer",
-        "study_note": "The dashboard is prepared for Ghana regional data. Add Ghana sector workbooks or GeoJSON to activate regional polygons.",
+        "zoom": 7,
+        "status": "Illustrative regional data",
+        "study_note": "Regional figures are illustrative placeholders based on approximate regional profiles. Replace them with the Ghana sector workbooks from the admin dashboard.",
         "admin_label": "Regions",
-        "geometry_file": None,
+        "place_label": "Region",
+        "geometry_file": "ghana_regions.geojson",
+        "illustrative": True,
     },
+}
+
+# Spelling fixes for county names in the Kenya workbooks, so they match the boundary file.
+KENYA_NAME_FIXES = {
+    "Kisli": "Kisii",
+    "Lalkipia": "Laikipia",
+    "Muranga": "Murang'a",
+    "WEST Pokot": "West Pokot",
 }
 
 
@@ -185,7 +213,39 @@ def sector_indicator_notes(sector, row):
     return []
 
 
-def build_kenya_records():
+def finalize_record(name, country, metrics, **extra):
+    valid_scores = [m.get("gender_hotspot_score") for m in metrics.values() if m.get("gender_hotspot_score") is not None]
+    composite = rounded(sum(valid_scores) / len(valid_scores)) if valid_scores else None
+    top_sector = max(metrics, key=lambda key: metrics[key].get("gender_hotspot_score") or -1) if valid_scores else None
+    return {
+        "name": name,
+        "country": country,
+        **extra,
+        "metrics": metrics,
+        "composite_score": composite,
+        "risk_level": risk_level(composite),
+        "top_sector": top_sector,
+    }
+
+
+def sector_metrics(sector, row, exposure, sensitivity, adaptive_capacity):
+    """Same scoring as the Kenya workbooks: components are 0-1, scores are 0-100."""
+    components = [v for v in (exposure, sensitivity, 1 - adaptive_capacity if adaptive_capacity is not None else None) if v is not None]
+    hotspot_score = clamp_0_100((sum(components) / len(components)) * 100 if components else None)
+    vulnerability = clamp_0_100(((exposure or 0) * 0.4 + (sensitivity or 0) * 0.35 + (1 - (adaptive_capacity or 0)) * 0.25) * 100)
+    return {
+        "risk_level": risk_level(hotspot_score),
+        "gender_hotspot_score": rounded(hotspot_score),
+        "vulnerability_score": rounded(vulnerability),
+        "exposure": rounded((exposure or 0) * 100),
+        "sensitivity": rounded((sensitivity or 0) * 100),
+        "adaptive_capacity": rounded((adaptive_capacity or 0) * 100),
+        "raw_value": rounded(sector_raw_metric(sector, row), 2),
+        "indicators": sector_indicator_notes(sector, row),
+    }
+
+
+def kenya_records_from_workbooks():
     sector_records = {}
     county_order = []
 
@@ -198,6 +258,7 @@ def build_kenya_records():
             county = str(row.get("District", "")).strip()
             if not county:
                 continue
+            county = KENYA_NAME_FIXES.get(county, county)
             if county not in county_order:
                 county_order.append(county)
 
@@ -205,40 +266,81 @@ def build_kenya_records():
             exposure = as_float(weighted.get("Normalize value_Exposure") or row.get("Normalize value_Exposure"))
             sensitivity = as_float(weighted.get("Sensitivity"))
             adaptive_capacity = as_float(weighted.get("Adaptive_Capacity"))
+            sector_records[sector][county] = sector_metrics(sector, row, exposure, sensitivity, adaptive_capacity)
 
-            components = [v for v in (exposure, sensitivity, 1 - adaptive_capacity if adaptive_capacity is not None else None) if v is not None]
-            hotspot_score = clamp_0_100((sum(components) / len(components)) * 100 if components else None)
-            vulnerability = clamp_0_100(((exposure or 0) * 0.4 + (sensitivity or 0) * 0.35 + (1 - (adaptive_capacity or 0)) * 0.25) * 100)
+    return [
+        finalize_record(
+            county,
+            "Kenya",
+            {sector: sector_records[sector].get(county, {}) for sector in SECTOR_FILES},
+            data_status="workbook",
+        )
+        for county in county_order
+    ]
 
-            sector_records[sector][county] = {
-                "risk_level": risk_level(hotspot_score),
-                "gender_hotspot_score": rounded(hotspot_score),
-                "vulnerability_score": rounded(vulnerability),
-                "exposure": rounded((exposure or 0) * 100),
-                "sensitivity": rounded((sensitivity or 0) * 100),
-                "adaptive_capacity": rounded((adaptive_capacity or 0) * 100),
-                "raw_value": rounded(sector_raw_metric(sector, row), 2),
-                "indicators": sector_indicator_notes(sector, row),
+
+def kenya_records_from_existing_output():
+    """Reuse the Kenya records already in hotspot_data.json when the workbooks are not on this machine."""
+    payload = json.loads(OUTPUT.read_text(encoding="utf-8"))
+    records = []
+    for record in payload["records"]["Kenya"]:
+        name = KENYA_NAME_FIXES.get(record["name"], record["name"])
+        records.append(finalize_record(name, "Kenya", record["metrics"], data_status="workbook"))
+    return records
+
+
+def build_kenya_records():
+    if all(path.exists() for path in SECTOR_FILES.values()):
+        print("Kenya: reading sector workbooks from Downloads")
+        return kenya_records_from_workbooks()
+    print("Kenya: workbooks not found in Downloads, keeping the Kenya records already in hotspot_data.json")
+    return kenya_records_from_existing_output()
+
+
+def unit(value, scale=100.0):
+    number = as_float(value)
+    return None if number is None else max(0.0, min(1.0, number / scale))
+
+
+def build_indicator_records(country):
+    """Build records from data/source/<country>_indicators.csv.
+
+    Exposure     : Exposure_Index (0-1 climate exposure of the unit's zone)
+    Water        : sensitivity = women's water collection burden and collection time; capacity = safe water access
+    Energy       : sensitivity = firewood dependence; capacity = women's access to modern energy
+    Agriculture  : sensitivity = women's dependence on agriculture; capacity = women's land ownership relative to parity (index 0.5)
+    """
+    path = SOURCE_DIR / f"{country.lower()}_indicators.csv"
+    if not path.exists():
+        print(f"{country}: {path.name} not found, no records built")
+        return []
+
+    illustrative = COUNTRY_PROFILES[country]["illustrative"]
+    records = []
+    with open(path, newline="", encoding="utf-8") as handle:
+        for row in csv.DictReader(handle):
+            name = str(row.get("District") or row.get("Region") or row.get("County") or "").strip()
+            if not name:
+                continue
+            exposure = unit(row.get("Exposure_Index"), 1.0)
+            water_sensitivity = (
+                0.6 * (unit(row.get("Per_hh_women_water_collection")) or 0)
+                + 0.4 * (unit(row.get("Per_hh_water_collection_time"), 60.0) or 0)
+            )
+            metrics = {
+                "Water": sector_metrics("Water", row, exposure, water_sensitivity, unit(row.get("Per_hh_access_safe_water"))),
+                "Energy": sector_metrics("Energy", row, exposure, unit(row.get("Per_HH_Dep_Firewhood")), unit(row.get("Per_women_access_energy"))),
+                "Agriculture": sector_metrics("Agriculture", row, exposure, unit(row.get("Women_Depedent_Ag"), 1.0), unit(row.get("Women_Land_Own"), 0.5)),
             }
-
-    counties = []
-    for county in county_order:
-        metrics = {sector: sector_records[sector].get(county, {}) for sector in SECTOR_FILES}
-        valid_scores = [m.get("gender_hotspot_score") for m in metrics.values() if m.get("gender_hotspot_score") is not None]
-        composite = rounded(sum(valid_scores) / len(valid_scores)) if valid_scores else None
-        top_sector = None
-        if valid_scores:
-            top_sector = max(metrics, key=lambda key: metrics[key].get("gender_hotspot_score") or -1)
-        counties.append({
-            "name": county,
-            "country": "Kenya",
-            "metrics": metrics,
-            "composite_score": composite,
-            "risk_level": risk_level(composite),
-            "top_sector": top_sector,
-        })
-
-    return counties
+            records.append(finalize_record(
+                name,
+                country,
+                metrics,
+                zone=str(row.get("Zone") or "").strip() or None,
+                female_population=int(as_float(row.get("Female_Population")) or 0) or None,
+                data_status="illustrative" if illustrative else "source table",
+            ))
+    return records
 
 
 def summarize_country(country, counties):
@@ -270,29 +372,52 @@ def summarize_country(country, counties):
     }
 
 
+def check_against_boundaries(country, records):
+    geometry_file = COUNTRY_PROFILES[country].get("geometry_file")
+    if not geometry_file or not (DATA_DIR / geometry_file).exists():
+        return
+    geojson = json.loads((DATA_DIR / geometry_file).read_text(encoding="utf-8"))
+    shapes = {f["properties"].get("county") or f["properties"].get("name") for f in geojson["features"]}
+    names = {record["name"] for record in records}
+    if shapes - names:
+        print(f"  WARNING {country}: boundaries without data: {sorted(shapes - names)}")
+    if names - shapes:
+        print(f"  WARNING {country}: records without a boundary: {sorted(names - shapes)}")
+
+
 def main():
-    kenya_counties = build_kenya_records()
+    records = {"Kenya": build_kenya_records()}
+    for country in COUNTRY_PROFILES:
+        if country != "Kenya":
+            records[country] = build_indicator_records(country)
+
     countries = []
     for country, profile in COUNTRY_PROFILES.items():
-        country_counties = kenya_counties if country == "Kenya" else []
-        countries.append({**profile, **summarize_country(country, country_counties)})
+        check_against_boundaries(country, records[country])
+        summary = summarize_country(country, records[country])
+        countries.append({**profile, **summary})
+        print(f"{country}: {summary['record_count']} records, average {summary['average_score']}, highest {summary['highest_hotspot']}")
 
     payload = {
         "meta": {
             "title": "AGNES Gender Hotspot Map",
-            "countries": ["Kenya", "Uganda", "Botswana", "Ghana"],
+            "countries": list(COUNTRY_PROFILES),
             "sectors": list(SECTOR_FILES.keys()),
             "metrics": ["risk_level", "gender_hotspot_score", "vulnerability_score", "exposure", "sensitivity", "adaptive_capacity"],
-            "source_note": "Kenya county metrics were generated from the supplied Hotspot Water, Energy, and Agriculture workbooks.",
+            "source_note": (
+                "Kenya county metrics were generated from the supplied Hotspot Water, Energy, and Agriculture workbooks. "
+                "Uganda, Botswana, and Ghana use illustrative placeholder figures until their sector workbooks are uploaded."
+            ),
+            "illustrative_countries": [country for country, profile in COUNTRY_PROFILES.items() if profile["illustrative"]],
+            "boundary_sources": "Kenya: geoBoundaries gbOpen (RCMRD). Uganda: geoBoundaries gbHumanitarian (UN OCHA). Botswana and Ghana: geoBoundaries gbOpen (OpenStreetMap contributors).",
         },
         "countries": countries,
-        "records": {"Kenya": kenya_counties, "Uganda": [], "Botswana": [], "Ghana": []},
+        "records": records,
     }
 
     DATA_DIR.mkdir(exist_ok=True)
-    output = DATA_DIR / "hotspot_data.json"
-    output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-    print(f"Wrote {output}")
+    OUTPUT.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    print(f"Wrote {OUTPUT}")
 
 
 if __name__ == "__main__":

@@ -41,11 +41,15 @@ const state = {
 };
 
 let hotspotData = null;
-let kenyaGeojson = null;
+let boundaries = {};
 let map;
 let countyLayer;
 let markerLayer;
 let selectedRecord = null;
+
+const PAGE_SIZE = 24;
+let visibleLimit = PAGE_SIZE;
+let lastListKey = "";
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -54,6 +58,22 @@ function escapeHtml(value) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
+}
+
+function recordKey(record) {
+  return `${record.country}::${record.name}`;
+}
+
+function recordByKey(key) {
+  return Object.values(hotspotData?.records || {}).flat().find((record) => recordKey(record) === key);
+}
+
+function placeLabel(countryName) {
+  return hotspotData?.countries?.find((country) => country.country === countryName)?.place_label || "County";
+}
+
+function adminLabel(countryName) {
+  return hotspotData?.countries?.find((country) => country.country === countryName)?.admin_label || "Counties";
 }
 
 function formatScore(value) {
@@ -232,8 +252,8 @@ function popupForCountry(country) {
   return `
     <div class="popup-card">
       <strong>${country.country}</strong>
-      <span>${country.status}</span>
-      <p>${country.study_note}</p>
+      <span>${escapeHtml(country.status)}</span>
+      <p>${escapeHtml(country.study_note)}</p>
       <dl>
         <dt>Average score</dt><dd>${formatScore(country.average_score)}</dd>
         <dt>Highest hotspot</dt><dd>${country.highest_hotspot || "Awaiting data"}</dd>
@@ -245,9 +265,10 @@ function popupForCountry(country) {
 
 function renderCountryMarkers() {
   markerLayer.clearLayers();
+  if (state.country !== "__all__") return;
   hotspotData.countries.forEach((country) => {
     const marker = L.circleMarker(country.center, {
-      radius: country.country === "Kenya" ? 11 : 9,
+      radius: 9,
       color: "#ffffff",
       weight: 2,
       fillColor: colorForCountry(country),
@@ -268,12 +289,14 @@ function countyNameFromFeature(feature) {
   return p.county || p.district_name || p.name;
 }
 
-function recordByCounty(name) {
-  return Object.values(hotspotData?.records || {}).flat().find((record) => record.name === name);
+function recordForFeature(feature) {
+  const country = feature.properties?.country;
+  const name = countyNameFromFeature(feature);
+  return (hotspotData?.records?.[country] || []).find((record) => record.name === name);
 }
 
 function styleCounty(feature) {
-  const record = recordByCounty(countyNameFromFeature(feature));
+  const record = recordForFeature(feature);
   return {
     color: "#ffffff",
     weight: 1,
@@ -289,7 +312,7 @@ function popupForRecord(record) {
   return `
     <div class="popup-card">
       <strong>${escapeHtml(record.name)}</strong>
-      <span>${escapeHtml(selectedSectorLabel())} - ${escapeHtml(riskForRecord(record))}</span>
+      <span>${escapeHtml(record.country)} - ${escapeHtml(selectedSectorLabel())} - ${escapeHtml(riskForRecord(record))}</span>
       <dl>
         <dt>${state.sector === "__all__" ? "Composite score" : "Hotspot score"}</dt><dd>${formatScore(metricForRecord(record))}</dd>
         <dt>Reference sector</dt><dd>${escapeHtml(activeSector)}</dd>
@@ -298,7 +321,7 @@ function popupForRecord(record) {
         <dt>Sensitivity</dt><dd>${formatScore(metrics.sensitivity)}</dd>
       </dl>
       <ul>${indicators}</ul>
-      <button class="popup-action" type="button" data-overview-record="${escapeHtml(record.name)}">Open overview</button>
+      <button class="popup-action" type="button" data-overview-record="${escapeHtml(recordKey(record))}">Open overview</button>
     </div>
   `;
 }
@@ -377,19 +400,19 @@ function aiInsightSummary(record) {
   return `
     <div class="ai-insight-summary">
       <article>
-        <span>County composite score</span>
+        <span>Composite score</span>
         <strong>${formatScore(record.composite_score)}</strong>
-        <small>Overall county hotspot reading across available sectors.</small>
+        <small>Overall hotspot reading across available sectors.</small>
       </article>
       <article>
-        <span>County composite risk</span>
+        <span>Composite risk</span>
         <strong>${escapeHtml(record.risk_level || "No data")}</strong>
-        <small>Current county-wide risk label used in the map overview.</small>
+        <small>Current overall risk label used in the map overview.</small>
       </article>
       <article>
         <span>Lead pressure sector</span>
         <strong>${escapeHtml(record.top_sector || "N/A")}</strong>
-        <small>Sector with the strongest hotspot signal in the county dataset.</small>
+        <small>Sector with the strongest hotspot signal for this place.</small>
       </article>
       <article>
         <span>${escapeHtml(sector)} hotspot score</span>
@@ -432,7 +455,7 @@ function aiMetricPanels(record) {
     <div class="ai-visual-grid">
       <section class="ai-visual-card">
         <div class="ai-visual-head">
-          <h4>County sector comparison</h4>
+          <h4>Sector comparison</h4>
           <p>Hotspot score across Water, Energy, and Agriculture with the active focus sector clearly labeled.</p>
         </div>
         <div class="ai-sector-bars">
@@ -457,7 +480,7 @@ function referenceListMarkup(references) {
   return `
     <section class="ai-reference-card">
       <h4>Related references</h4>
-      <p>County-related reports, datasets, and institutional sources surfaced during AI generation.</p>
+      <p>Related reports, datasets, and institutional sources surfaced during AI generation.</p>
       <ul class="ai-reference-list">
         ${references.map((reference) => `
           <li>
@@ -560,8 +583,8 @@ function buildAiNarrativeExportHtml(record, sector, ai) {
 </html>`;
 }
 
-function downloadAiNarrative(recordName) {
-  const record = recordByCounty(recordName);
+function downloadAiNarrative(key) {
+  const record = recordByKey(key);
   if (!record || state.sector === "__all__") return;
   const ai = record.ai_narratives?.[state.sector];
   if (!ai) return;
@@ -582,13 +605,98 @@ function downloadAiNarrative(recordName) {
   URL.revokeObjectURL(url);
 }
 
+const DRIVER_ACTIONS = {
+  Water: {
+    exposure: "Prioritise drought- and flood-resilient water sources (protected boreholes, storage, rainwater harvesting) sited with women's user groups.",
+    sensitivity: "Shorten collection distances with nearer water points and household connections, and track women's and girls' collection time as a programme result.",
+    capacity: "Expand safe water coverage and put women on water committees with real say over tariffs, siting, and maintenance budgets."
+  },
+  Energy: {
+    exposure: "Protect energy supply chains and woodland resources from climate shocks, and plan for clean-fuel access during drought and flood periods.",
+    sensitivity: "Reduce firewood dependence through improved cookstoves, LPG and biogas access, and woodlot schemes managed by women's groups.",
+    capacity: "Scale grid, mini-grid, and solar connections with financing women can access, and open energy-sector jobs and enterprise support to women."
+  },
+  Agriculture: {
+    exposure: "Roll out climate information services, drought-tolerant seed, and small-scale irrigation that reach women farmers directly.",
+    sensitivity: "Diversify women's income beyond rain-fed farming through value addition, market access, and off-farm enterprise support.",
+    capacity: "Strengthen women's land rights through joint titling and registration, and link secure tenure to credit, inputs, and extension."
+  }
+};
+
+function leadDriver(metrics) {
+  const drivers = [
+    { key: "exposure", label: "climate exposure", value: metrics.exposure },
+    { key: "sensitivity", label: "gendered sensitivity", value: metrics.sensitivity },
+    { key: "capacity", label: "low adaptive capacity", value: metrics.adaptive_capacity == null ? null : 100 - metrics.adaptive_capacity }
+  ].filter((driver) => driver.value != null && Number.isFinite(Number(driver.value)));
+  if (!drivers.length) return null;
+  return drivers.sort((a, b) => b.value - a.value)[0];
+}
+
+function dataSourceSentence(record) {
+  if (record.data_status === "illustrative") {
+    return `Figures for ${record.name} are illustrative placeholders, not survey results. They are replaced when the ${record.country} sector workbooks are uploaded.`;
+  }
+  if (record.data_status === "uploaded") {
+    return "Figures come from sector workbooks uploaded through the admin dashboard.";
+  }
+  return "Figures come from the supplied water, energy, and agriculture sector workbooks.";
+}
+
+function automaticBrief(record) {
+  const sectors = hotspotData.meta.sectors.filter((sector) => record.metrics?.[sector]?.gender_hotspot_score != null);
+  if (!sectors.length) return "";
+
+  const peers = (hotspotData.records[record.country] || [])
+    .filter((item) => item.composite_score != null)
+    .sort((a, b) => b.composite_score - a.composite_score);
+  const rank = peers.findIndex((item) => item.name === record.name) + 1;
+  const place = placeLabel(record.country).toLowerCase();
+  const top = record.top_sector;
+  const topMetrics = record.metrics?.[top] || {};
+
+  const overview = [
+    `${record.name}${record.zone ? ` (${record.zone})` : ""} has a composite gender hotspot score of ${formatScore(record.composite_score)}, classed as ${record.risk_level}.`
+      + (rank ? ` It ranks ${rank} of ${peers.length} ${adminLabel(record.country).toLowerCase()} in ${record.country}, where 1 is the most severe hotspot.` : ""),
+    top ? `${top} is the strongest pressure in this ${place}, with a hotspot score of ${formatScore(topMetrics.gender_hotspot_score)} (${topMetrics.risk_level}).` : ""
+  ].filter(Boolean).join("\n");
+
+  const findings = sectors.map((sector) => {
+    const metrics = record.metrics[sector];
+    const driver = leadDriver(metrics);
+    const indicators = (metrics.indicators || []).join("; ");
+    return `${sector}: ${formatScore(metrics.gender_hotspot_score)} (${metrics.risk_level}). Exposure ${formatScore(metrics.exposure)}, sensitivity ${formatScore(metrics.sensitivity)}, adaptive capacity ${formatScore(metrics.adaptive_capacity)}.`
+      + (driver ? ` Main driver: ${driver.label}.` : "")
+      + (indicators ? ` ${indicators}.` : "");
+  }).join("\n");
+
+  const ranked = [...sectors].sort((a, b) => record.metrics[b].gender_hotspot_score - record.metrics[a].gender_hotspot_score);
+  const recommendations = ranked.map((sector) => {
+    const driver = leadDriver(record.metrics[sector]);
+    return driver ? `${sector}: ${DRIVER_ACTIONS[sector]?.[driver.key] || ""}` : "";
+  }).filter(Boolean).join("\n");
+
+  return `
+    <article class="report-narrative">
+      <div>
+        <span class="card-kicker">Automatic data brief</span>
+        <h3>${escapeHtml(record.name)} at a glance</h3>
+      </div>
+      ${textBlock("Overview", overview)}
+      ${textBlock("Sector readings", findings)}
+      ${textBlock("Suggested priorities", recommendations)}
+      ${textBlock("Data note", `${dataSourceSentence(record)}\nThis brief is generated from the map metrics. Admins can replace it with a written narrative from the admin dashboard.`)}
+    </article>
+  `;
+}
+
 function adminReportSections(record) {
   const reports = record.reports || [];
   if (!reports.length) {
-    return `
+    return automaticBrief(record) || `
       <article class="report-text-block">
         <h3>Admin narrative</h3>
-        <p>No admin-written narrative has been added for this county yet. Use the admin dashboard to publish context, findings, recommendations, and methodology notes.</p>
+        <p>No narrative or metrics are available for this place yet. Use the admin dashboard to upload data or publish a report.</p>
       </article>
     `;
   }
@@ -617,7 +725,7 @@ function aiNarrativeSections(record) {
     return `
       <article class="ai-narrative-card">
         <div>
-          <span class="card-kicker">AI county report</span>
+          <span class="card-kicker">AI ${escapeHtml(placeLabel(record.country).toLowerCase())} report</span>
           <h3>Select a sector to generate an AI report</h3>
           <p>
             AI report generation is available for a specific sector. Switch from <strong>All sectors</strong>
@@ -632,14 +740,14 @@ function aiNarrativeSections(record) {
     return `
       <article class="ai-narrative-card" data-ai-card>
         <div>
-          <span class="card-kicker">AI county report</span>
-          <h3>Generate a professional county report</h3>
+          <span class="card-kicker">AI ${escapeHtml(placeLabel(record.country).toLowerCase())} report</span>
+          <h3>Generate a professional ${escapeHtml(placeLabel(record.country).toLowerCase())} report</h3>
           <p>
             No AI report has been generated for ${escapeHtml(record.name)} and ${escapeHtml(state.sector)} yet.
-            Use AI to draft a readable county report using the hotspot metrics and wider public context.
+            Use AI to draft a readable report using the hotspot metrics and wider public context.
           </p>
         </div>
-        <button class="button button-primary" type="button" data-generate-ai="${escapeHtml(record.name)}">Generate AI report</button>
+        <button class="button button-primary" type="button" data-generate-ai="${escapeHtml(recordKey(record))}">Generate AI report</button>
         <small>The AI report is cached after generation and does not expose external website links in the public report.</small>
       </article>
     `;
@@ -659,13 +767,13 @@ function aiNarrativeSections(record) {
     <article class="ai-narrative-card ai-narrative-card-ready" data-ai-card>
       <div class="ai-narrative-head">
         <div>
-          <span class="card-kicker">AI county report</span>
+          <span class="card-kicker">AI ${escapeHtml(placeLabel(record.country).toLowerCase())} report</span>
           <h3>${escapeHtml(record.name)} ${escapeHtml(state.sector)} report</h3>
           <p>Generated from dashboard metrics with broader public context and organized for decision-ready reading. No external website links are shown in this reader view.</p>
         </div>
         <div class="ai-narrative-actions">
-          <button class="button button-secondary" type="button" data-download-ai="${escapeHtml(record.name)}">Download report</button>
-          <button class="button button-secondary" type="button" data-generate-ai="${escapeHtml(record.name)}" data-force-ai="1">Regenerate</button>
+          <button class="button button-secondary" type="button" data-download-ai="${escapeHtml(recordKey(record))}">Download report</button>
+          <button class="button button-secondary" type="button" data-generate-ai="${escapeHtml(recordKey(record))}" data-force-ai="1">Regenerate</button>
         </div>
       </div>
       ${aiInsightSummary(record)}
@@ -710,7 +818,7 @@ function documentSections(record) {
     return `
       <article class="document-empty">
         <h3>Documents</h3>
-        <p>No PDFs have been attached yet. Admins can upload county documents, evidence notes, and full reports from the admin dashboard.</p>
+        <p>No PDFs have been attached yet. Admins can upload documents, evidence notes, and full reports from the admin dashboard.</p>
       </article>
     `;
   }
@@ -730,21 +838,22 @@ function documentSections(record) {
   `;
 }
 
-function selectRecord(recordName, shouldScroll = true) {
-  const record = recordByCounty(recordName);
+function selectRecord(key, shouldScroll = true) {
+  const record = recordByKey(key);
   if (!record) return;
   selectedRecord = record;
 
   const activeSector = sectorForDisplay(record);
   const metrics = record.metrics[activeSector] || {};
   const overview = document.getElementById("countyOverview");
-  document.getElementById("overviewKicker").textContent = `${record.country} county overview`;
+  document.getElementById("overviewKicker").textContent = `${record.country} ${placeLabel(record.country).toLowerCase()} overview${record.data_status === "illustrative" ? " - illustrative data" : ""}`;
+  document.getElementById("overviewBack").textContent = `Back to all ${adminLabel(record.country).toLowerCase()}`;
   document.getElementById("overviewTitle").textContent = record.name;
   document.getElementById("overviewScore").textContent = formatScore(metricForRecord(record));
   document.getElementById("overviewSummary").textContent =
     state.sector === "__all__"
-      ? `${record.name} is currently classified as ${riskForRecord(record)} overall. The overview uses the composite county picture and highlights ${activeSector} as the strongest current sector signal.`
-      : `${record.name} is currently classified as ${riskForRecord(record)} for ${state.sector}. The overview below highlights the selected sector, while the full report compares all sectors for this county.`;
+      ? `${record.name} is currently classified as ${riskForRecord(record)} overall. The overview uses the composite picture across sectors and highlights ${activeSector} as the strongest current sector signal.`
+      : `${record.name} is currently classified as ${riskForRecord(record)} for ${state.sector}. The overview below highlights the selected sector, while the full report compares all sectors for this ${placeLabel(record.country).toLowerCase()}.`;
 
   document.getElementById("overviewGrid").innerHTML = `
     <article><span>Risk level</span><strong>${escapeHtml(riskForRecord(record))}</strong></article>
@@ -758,12 +867,13 @@ function selectRecord(recordName, shouldScroll = true) {
   setDetailMode(true);
 
   document.querySelectorAll(".record-card").forEach((card) => {
-    card.classList.toggle("is-selected", card.dataset.recordName === record.name);
+    card.classList.toggle("is-selected", card.dataset.recordName === recordKey(record));
   });
 
   if (shouldScroll) {
     overview.scrollIntoView({ behavior: "smooth", block: "start" });
   }
+  syncUrl();
 }
 
 function setDetailMode(isFocused) {
@@ -779,6 +889,7 @@ function clearSelectedRecord() {
   setDetailMode(false);
   document.querySelectorAll(".record-card").forEach((card) => card.classList.remove("is-selected"));
   document.querySelector(".records-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  syncUrl();
 }
 
 function renderFullReport(record = selectedRecord) {
@@ -792,7 +903,7 @@ function renderFullReport(record = selectedRecord) {
   section.innerHTML = `
     <div class="full-report-head">
       <div>
-        <span class="card-kicker">Full county report</span>
+        <span class="card-kicker">Full ${escapeHtml(placeLabel(record.country).toLowerCase())} report${record.data_status === "illustrative" ? " - illustrative data" : ""}</span>
         <h2>${escapeHtml(record.name)} gender hotspot report</h2>
         <p>
           This report brings together water, energy, and agriculture indicators for ${escapeHtml(record.name)}.
@@ -821,8 +932,8 @@ function renderFullReport(record = selectedRecord) {
   section.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-async function generateAiNarrative(recordName, force = false) {
-  const record = recordByCounty(recordName);
+async function generateAiNarrative(key, force = false) {
+  const record = recordByKey(key);
   if (!record) return;
   const card = document.querySelector("[data-ai-card]");
   if (card) {
@@ -846,7 +957,7 @@ async function generateAiNarrative(recordName, force = false) {
 
     record.ai_narratives = record.ai_narratives || {};
     record.ai_narratives[state.sector] = payload;
-    if (selectedRecord?.name === record.name) selectedRecord = record;
+    if (selectedRecord && recordKey(selectedRecord) === recordKey(record)) selectedRecord = record;
     renderFullReport(record);
   } catch (error) {
     if (card) {
@@ -866,41 +977,55 @@ function renderCountyLayer() {
     countyLayer = null;
   }
 
-  if (!kenyaGeojson || (state.country !== "__all__" && state.country !== "Kenya")) return;
+  const countries = state.country === "__all__" ? Object.keys(boundaries) : [state.country];
+  const visibleKeys = new Set(getFilteredRecords().map(recordKey));
+  const features = countries.flatMap((country) => (boundaries[country]?.features || []).filter((feature) => {
+    const record = recordForFeature(feature);
+    return record && visibleKeys.has(recordKey(record));
+  }));
+  if (!features.length) return;
 
-  const visibleNames = new Set(getFilteredRecords().map((record) => record.name));
-  const filteredGeojson = {
-    ...kenyaGeojson,
-    features: kenyaGeojson.features.filter((feature) => visibleNames.has(countyNameFromFeature(feature)))
-  };
-
-  countyLayer = L.geoJSON(filteredGeojson, {
+  countyLayer = L.geoJSON({ type: "FeatureCollection", features }, {
     style: styleCounty,
+    attribution: "Boundaries: geoBoundaries (RCMRD, UN OCHA, OpenStreetMap contributors)",
     onEachFeature(feature, layer) {
-      const record = recordByCounty(countyNameFromFeature(feature));
+      const record = recordForFeature(feature);
       if (!record) return;
-      layer.bindPopup(popupForRecord(record));
-      layer.on("click", () => selectRecord(record.name, false));
+      layer.bindPopup(() => popupForRecord(record));
+      layer.bindTooltip(escapeHtml(`${record.name}: ${formatScoreOrRisk(record)}`), { sticky: true });
+      layer.on("click", () => selectRecord(recordKey(record), false));
       layer.on("mouseover", () => layer.setStyle({ weight: 2.5, color: "#111827" }));
-      layer.on("mouseout", () => countyLayer.resetStyle(layer));
+      layer.on("mouseout", () => countyLayer && countyLayer.resetStyle(layer));
     }
   }).addTo(map);
 }
 
-function fitMap() {
+function formatScoreOrRisk(record) {
+  const value = metricForRecord(record);
+  return state.metric === "risk_level" ? value : `${formatScore(value)} (${riskForRecord(record)})`;
+}
+
+let lastFitKey = null;
+
+function fitMap(force = false) {
+  // Only move the map when the country changes, so filtering and selecting places does not reset the view.
+  if (!force && lastFitKey === state.country) return;
+  lastFitKey = state.country;
+
   if (state.country === "__all__") {
     const group = L.featureGroup();
     hotspotData.countries.forEach((country) => group.addLayer(L.marker(country.center)));
-    if (countyLayer) group.addLayer(countyLayer);
-    map.fitBounds(group.getBounds().pad(0.18));
+    Object.values(boundaries).forEach((geojson) => group.addLayer(L.geoJSON(geojson)));
+    map.fitBounds(group.getBounds().pad(0.08));
     map.panInsideBounds(AFRICA_BOUNDS, { animate: false });
     return;
   }
 
   const country = countryByName(state.country);
   if (!country) return;
-  if (state.country === "Kenya" && countyLayer && countyLayer.getBounds().isValid()) {
-    map.fitBounds(countyLayer.getBounds().pad(0.08));
+  const countryFeatures = boundaries[state.country]?.features || [];
+  if (countryFeatures.length) {
+    map.fitBounds(L.geoJSON({ type: "FeatureCollection", features: countryFeatures }).getBounds().pad(0.05));
     map.panInsideBounds(AFRICA_BOUNDS, { animate: false });
     return;
   }
@@ -1081,21 +1206,34 @@ function renderRecordCards(records) {
   const empty = document.getElementById("emptyState");
   const intro = document.getElementById("recordsIntro");
 
+  const showMoreRow = document.getElementById("showMoreRow");
   if (state.country === "__all__") {
+    showMoreRow.hidden = true;
     renderCountryRecordCards(records);
     return;
   }
 
-  document.getElementById("recordsTitle").textContent = `${state.country} hotspot records`;
-  intro.textContent = `Detailed hotspot records for ${state.country}. Use the cards below to open county, district, or regional reports one place at a time.`;
+  const listKey = [state.country, state.sector, state.metric, state.risk, state.search, state.sort].join("|");
+  if (listKey !== lastListKey) {
+    visibleLimit = PAGE_SIZE;
+    lastListKey = listKey;
+  }
+  const total = records.length;
+  records = records.slice(0, visibleLimit);
+  showMoreRow.hidden = total <= records.length;
+  document.getElementById("showMoreCount").textContent = `Showing ${records.length} of ${total}`;
+  document.getElementById("showMoreButton").textContent = `Show ${Math.min(PAGE_SIZE, total - records.length)} more`;
 
-  empty.hidden = records.length > 0;
+  document.getElementById("recordsTitle").textContent = `${state.country} hotspot records`;
+  intro.textContent = `Detailed hotspot records for ${state.country}. Use the cards below to open ${placeLabel(state.country).toLowerCase()} reports one place at a time.`;
+
+  empty.hidden = total > 0;
   grid.innerHTML = records.map((record) => {
     const activeSector = sectorForDisplay(record);
     const metrics = record.metrics[activeSector] || {};
     const indicators = (metrics.indicators || []).slice(0, 3).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
     return `
-      <article class="record-card ${selectedRecord?.name === record.name ? "is-selected" : ""}" data-record-name="${escapeHtml(record.name)}">
+      <article class="record-card ${selectedRecord && recordKey(selectedRecord) === recordKey(record) ? "is-selected" : ""}" data-record-name="${escapeHtml(recordKey(record))}">
         <div class="record-top">
           <div>
             <span class="card-kicker">${escapeHtml(record.country)} - ${escapeHtml(selectedSectorLabel())}</span>
@@ -1113,7 +1251,7 @@ function renderRecordCards(records) {
           <span>Capacity <strong>${formatScore(metrics.adaptive_capacity)}</strong></span>
         </div>
         <ul>${indicators}</ul>
-        <button class="read-more-btn" type="button" data-read-record="${escapeHtml(record.name)}">Read full report</button>
+        <button class="read-more-btn" type="button" data-read-record="${escapeHtml(recordKey(record))}">Read full report</button>
       </article>
     `;
   }).join("");
@@ -1131,6 +1269,98 @@ function renderMetricNote() {
     <strong>${country} - ${selectedSectorLabel()}</strong>
     <p>${METRIC_COPY[state.metric]}</p>
   `;
+}
+
+function renderDataNotice() {
+  const notice = document.getElementById("dataNotice");
+  if (!notice) return;
+  const illustrative = hotspotData.countries.filter((country) => country.illustrative
+    && (state.country === "__all__" || state.country === country.country));
+  notice.hidden = illustrative.length === 0;
+  notice.innerHTML = illustrative.length ? `
+    <strong>Illustrative data</strong>
+    <p>${escapeHtml(illustrative.map((country) => country.country).join(", "))} ${illustrative.length > 1 ? "use" : "uses"} placeholder figures, not survey results. Upload the sector workbooks from the admin dashboard to replace them.</p>
+  ` : "";
+}
+
+function currentViewUrl() {
+  const params = new URLSearchParams();
+  if (state.country !== "__all__") params.set("country", state.country);
+  if (state.sector !== "__all__") params.set("sector", state.sector);
+  if (state.metric !== "gender_hotspot_score") params.set("metric", state.metric);
+  if (state.risk !== "__all__") params.set("risk", state.risk);
+  if (state.search.trim()) params.set("q", state.search.trim());
+  if (selectedRecord) {
+    params.set("country", selectedRecord.country);
+    params.set("place", selectedRecord.name);
+  }
+  const query = params.toString();
+  return `${window.location.pathname}${query ? `?${query}` : ""}`;
+}
+
+function syncUrl() {
+  if (!hotspotData) return;
+  window.history.replaceState(null, "", currentViewUrl());
+}
+
+function flashButton(button, label) {
+  const text = button.querySelector("span");
+  const original = text.textContent;
+  text.textContent = label;
+  button.classList.add("is-done");
+  window.setTimeout(() => {
+    text.textContent = original;
+    button.classList.remove("is-done");
+  }, 1800);
+}
+
+async function copyViewLink(button) {
+  const url = new URL(currentViewUrl(), window.location.origin).toString();
+  try {
+    await navigator.clipboard.writeText(url);
+    flashButton(button, "Link copied");
+  } catch (error) {
+    window.prompt("Copy this link", url);
+  }
+}
+
+function csvCell(value) {
+  const text = value == null ? "" : String(value);
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+function downloadVisibleCsv(button) {
+  const records = getFilteredRecords();
+  if (!records.length) return;
+  const sectors = hotspotData.meta.sectors;
+  const sectorFields = [
+    ["gender_hotspot_score", "hotspot score"],
+    ["risk_level", "risk"],
+    ["vulnerability_score", "vulnerability"],
+    ["exposure", "exposure"],
+    ["sensitivity", "sensitivity"],
+    ["adaptive_capacity", "adaptive capacity"]
+  ];
+  const header = ["Country", "Place", "Zone", "Data status", "Composite score", "Composite risk", "Top sector"];
+  sectors.forEach((sector) => sectorFields.forEach(([, label]) => header.push(`${sector} ${label}`)));
+  const rows = records.map((record) => {
+    const row = [record.country, record.name, record.zone || "", record.data_status || "", record.composite_score, record.risk_level, record.top_sector || ""];
+    sectors.forEach((sector) => sectorFields.forEach(([field]) => row.push(record.metrics?.[sector]?.[field])));
+    return row;
+  });
+  const csv = [header, ...rows].map((row) => row.map(csvCell).join(",")).join("\r\n");
+  const scope = [state.country === "__all__" ? "all-countries" : state.country, state.sector === "__all__" ? "" : state.sector, state.risk === "__all__" ? "" : state.risk]
+    .filter(Boolean).join("-").toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `gender-hotspots-${scope}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+  flashButton(button, `${records.length} rows saved`);
 }
 
 function resetFilters() {
@@ -1158,7 +1388,7 @@ function updateRecordsBackButton() {
 
 function applyState() {
   const records = getFilteredRecords();
-  if (selectedRecord && !records.some((record) => record.name === selectedRecord.name)) {
+  if (selectedRecord && !records.some((record) => recordKey(record) === recordKey(selectedRecord))) {
     selectedRecord = null;
     const overview = document.getElementById("countyOverview");
     if (overview) overview.hidden = true;
@@ -1168,6 +1398,7 @@ function applyState() {
   renderCountryCards();
   renderCountryMarkers();
   renderCountyLayer();
+  markerLayer.eachLayer((layer) => layer.bringToFront());
   fitMap();
   renderSummary(records);
   renderSectorChart(records);
@@ -1175,26 +1406,40 @@ function applyState() {
   renderRecordCards(records);
   updateRecordsBackButton();
   if (selectedRecord) {
-    selectRecord(selectedRecord.name, false);
+    selectRecord(recordKey(selectedRecord), false);
   } else {
     setDetailMode(false);
   }
   renderLegend();
   renderMetricNote();
+  renderDataNotice();
+  syncUrl();
 }
 
 async function init() {
   const params = new URLSearchParams(window.location.search);
   const requestedCountry = params.get("country");
   const requestedSector = params.get("sector");
+  const requestedMetric = params.get("metric");
+  const requestedRisk = params.get("risk");
+  const requestedSearch = params.get("q");
+  const requestedPlace = params.get("place");
 
   initMap();
-  const [data, geojson] = await Promise.all([
-    fetch("/api/hotspot-data").then((res) => res.json()),
-    fetch("/data/kenya_districts.geojson").then((res) => res.json())
-  ]);
-  hotspotData = data;
-  kenyaGeojson = geojson;
+  hotspotData = await fetch("/api/hotspot-data").then((res) => res.json());
+  await Promise.all(hotspotData.countries.filter((country) => country.geometry_file).map(async (country) => {
+    try {
+      const response = await fetch(`/data/${country.geometry_file}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const geojson = await response.json();
+      geojson.features.forEach((feature) => {
+        feature.properties = { ...feature.properties, country: country.country };
+      });
+      boundaries[country.country] = geojson;
+    } catch (error) {
+      console.warn(`Boundaries for ${country.country} could not be loaded:`, error);
+    }
+  }));
 
   if (requestedCountry && hotspotData.meta.countries.includes(requestedCountry)) {
     state.country = requestedCountry;
@@ -1202,12 +1447,30 @@ async function init() {
   if (requestedSector && [...hotspotData.meta.sectors, "__all__"].includes(requestedSector)) {
     state.sector = requestedSector;
   }
+  if (requestedMetric && (hotspotData.meta.metrics || []).includes(requestedMetric)) {
+    state.metric = requestedMetric;
+  }
+  if (requestedRisk && RISK_ORDER.includes(requestedRisk)) {
+    state.risk = requestedRisk;
+  }
+  if (requestedSearch) {
+    state.search = requestedSearch;
+  }
 
   buildOptions(document.getElementById("countrySelect"), hotspotData.meta.countries, "All study countries");
   buildOptions(document.getElementById("sectorSelect"), hotspotData.meta.sectors, "All sectors");
   document.getElementById("countrySelect").value = state.country;
   document.getElementById("sectorSelect").value = state.sector;
   document.getElementById("metricSelect").value = state.metric;
+  document.getElementById("riskSelect").value = state.risk;
+  document.getElementById("searchInput").value = state.search;
+
+  document.getElementById("copyLinkButton").addEventListener("click", (event) => copyViewLink(event.currentTarget));
+  document.getElementById("downloadCsvButton").addEventListener("click", (event) => downloadVisibleCsv(event.currentTarget));
+  document.getElementById("showMoreButton").addEventListener("click", () => {
+    visibleLimit += PAGE_SIZE;
+    renderRecordCards(getFilteredRecords());
+  });
 
   document.getElementById("countrySelect").addEventListener("change", (event) => {
     state.country = event.target.value;
@@ -1282,7 +1545,7 @@ async function init() {
     if (readTarget) {
       const name = readTarget.getAttribute("data-read-record");
       selectRecord(name, true);
-      renderFullReport(recordByCounty(name));
+      renderFullReport(recordByKey(name));
       return;
     }
 
@@ -1333,6 +1596,12 @@ async function init() {
   });
 
   applyState();
+
+  if (requestedPlace && state.country !== "__all__" && recordByKey(`${state.country}::${requestedPlace}`)) {
+    const key = `${state.country}::${requestedPlace}`;
+    selectRecord(key, true);
+    renderFullReport(recordByKey(key));
+  }
 }
 
 init().catch((error) => {

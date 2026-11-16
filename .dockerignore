@@ -1,0 +1,19 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.docker.example
+.venv
+venv
+ENV
+instance
+__pycache__
+**/__pycache__
+*.pyc
+*.log
+node_modules
+.vscode
+.claude
+# Superseded Kenya boundary template (27 of 47 counties have no geometry)
+data/kenya_districts.geojson
+data/kenya_county_metrics_template.json

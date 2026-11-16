@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Methodology | AGNES Gender Hotspot Map{% endblock %}
+
+{% block content %}
+<section class="page-hero">
+  <span class="eyebrow">Methodology</span>
+  <h1>How the hotspot scores are built</h1>
+  <p>
+    Every place gets a 0 to 100 gender hotspot score for water, energy, and agriculture.
+    This page explains what goes into the score, how to read it, and where the data comes from.
+  </p>
+  <nav class="page-toc" aria-label="On this page">
+    <a href="#score">The score</a>
+    <a href="#risk-classes">Risk classes</a>
+    <a href="#indicators">Sector indicators</a>
+    <a href="#data-status">Data status</a>
+    <a href="#limits">Limits</a>
+  </nav>
+</section>
+
+<div class="doc-layout">
+  <section class="doc-section" id="score">
+    <h2>The score</h2>
+    <p>
+      Each sector score combines three components, each on a 0 to 1 scale. Exposure and sensitivity
+      raise the score. Adaptive capacity lowers it, so it enters as its gap from full capacity.
+    </p>
+    <div class="formula-card">
+      <span>Gender hotspot score</span>
+      <code>(Exposure + Sensitivity + (1 &minus; Adaptive capacity)) &divide; 3 &times; 100</code>
+    </div>
+    <div class="formula-card">
+      <span>Vulnerability score</span>
+      <code>(0.40 &times; Exposure + 0.35 &times; Sensitivity + 0.25 &times; (1 &minus; Adaptive capacity)) &times; 100</code>
+    </div>
+    <p>
+      The <strong>composite score</strong> of a place is the average of its three sector hotspot scores.
+      The sector with the highest score is shown as the place's top pressure.
+    </p>
+    <div class="component-cards">
+      <article><span class="component-badge">E</span><h3>Exposure</h3><p>How strongly the place is exposed to climate hazards such as drought, flood, and heat. One value per place, shared by all three sectors.</p></article>
+      <article><span class="component-badge">S</span><h3>Sensitivity</h3><p>How much women's daily work and income depend on the resource under pressure in that sector.</p></article>
+      <article><span class="component-badge">A</span><h3>Adaptive capacity</h3><p>Access and assets that help women cope, such as safe water, modern energy, and land ownership.</p></article>
+    </div>
+  </section>
+
+  <section class="doc-section" id="risk-classes">
+    <h2>Risk classes</h2>
+    <p>Scores are grouped into five classes. The same thresholds apply to sector scores and composite scores.</p>
+    <div class="table-wrap">
+      <table class="doc-table">
+        <thead><tr><th>Class</th><th>Score range</th><th>Reading</th></tr></thead>
+        <tbody>
+          <tr><td><span class="risk-chip risk-very-high">Very high</span></td><td>75 to 100</td><td>Severe hotspot. First in line for gender-responsive action.</td></tr>
+          <tr><td><span class="risk-chip risk-high">High</span></td><td>60 to 74.9</td><td>Clear hotspot. Needs targeted programming.</td></tr>
+          <tr><td><span class="risk-chip risk-medium">Medium</span></td><td>40 to 59.9</td><td>Mixed picture. Check which component drives the score.</td></tr>
+          <tr><td><span class="risk-chip risk-low">Low</span></td><td>20 to 39.9</td><td>Lower pressure. Monitor for change.</td></tr>
+          <tr><td><span class="risk-chip risk-very-low">Very low</span></td><td>0 to 19.9</td><td>Least pressure among mapped places.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="doc-section" id="indicators">
+    <h2>Sector indicators</h2>
+    <p>These indicators feed the sensitivity and adaptive capacity components and are listed on every place's report.</p>
+    <div class="table-wrap">
+      <table class="doc-table">
+        <thead><tr><th>Sector</th><th>Sensitivity draws on</th><th>Adaptive capacity draws on</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Water</strong></td><td>Share of households where women collect water, and the time collection takes</td><td>Share of households with access to safe water</td></tr>
+          <tr><td><strong>Energy</strong></td><td>Share of households depending on firewood</td><td>Women's access to modern energy, and women employed in energy</td></tr>
+          <tr><td><strong>Agriculture</strong></td><td>Women's dependence on agriculture for income</td><td>Women's land ownership</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="doc-note">
+      For Kenya, the three components are taken as calculated in the sector workbooks. For the
+      illustrative countries, water sensitivity weights the collection burden at 60% and collection time
+      (capped at 60 minutes) at 40%, and land ownership is scaled against parity at an index of 0.5.
+    </p>
+  </section>
+
+  <section class="doc-section" id="data-status">
+    <h2>Data status</h2>
+    <p>Not every country is at the same stage. The label beside each country tells you how far to trust the figures.</p>
+    <div class="table-wrap">
+      <table class="doc-table">
+        <thead><tr><th>Country</th><th>Units</th><th>Status</th><th>What it means</th></tr></thead>
+        <tbody>
+          {% for country in countries %}
+          <tr>
+            <td><strong>{{ country.country }}</strong></td>
+            <td>{{ country.record_count }} {{ country.admin_label|lower }}</td>
+            <td><span class="status-pill {{ 'is-illustrative' if country.illustrative else 'is-verified' }}">{{ country.status }}</span></td>
+            <td>{{ country.study_note }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="callout">
+      <strong>Illustrative figures are placeholders.</strong>
+      <p>
+        They follow plausible regional patterns so the tool can be explored end to end, but they are not
+        survey results and should not be cited. They are replaced place by place as sector workbooks are
+        uploaded from the admin dashboard.
+      </p>
+    </div>
+    {% if boundary_sources %}
+    <p class="doc-note"><strong>Boundaries.</strong> {{ boundary_sources }}</p>
+    {% endif %}
+  </section>
+
+  <section class="doc-section" id="limits">
+    <h2>Limits to keep in mind</h2>
+    <ul class="doc-list">
+      <li>Scores rank places against a common scale. They are signals for where to look closer, not measurements of harm.</li>
+      <li>A single exposure value per place hides variation inside large counties, districts, and regions.</li>
+      <li>Indicators come from different years and sources, so small differences between places should not be over-read.</li>
+      <li>AI reports are drafted from the map metrics and general public context. Treat them as a starting draft and check them before use.</li>
+    </ul>
+    <a class="button button-primary" href="{{ url_for('map_page') }}">Open the interactive map</a>
+  </section>
+</div>
+{% endblock %}

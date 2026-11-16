@@ -1,0 +1,11 @@
+District,Zone,Female_Population,Exposure_Index,Per_hh_women_water_collection,Per_hh_access_safe_water,Per_hh_water_collection_time,Women_access_energy,Per_women_access_energy,Per_HH_Dep_Firewhood,Women_employ_energy,Female_Pop_Ag,Women_Land_Own,Women_Depedent_Ag
+Central,Central,330000,0.66,40,86,18,198000,60,48,264,68970,0.29,0.38
+Chobe,Okavango and Ngamiland,14000,0.62,36,88,14,9520,68,34,12,2310,0.26,0.3
+Ghanzi,Kalahari,28000,0.86,50,76,28,12880,46,58,18,6776,0.2,0.44
+Kgalagadi,Kalahari,29000,0.9,48,78,26,13920,48,56,20,6699,0.21,0.42
+Kgatleng,Eastern Hardveld,62000,0.55,30,93,10,44640,72,30,57,8184,0.32,0.24
+Kweneng,Eastern Hardveld,198000,0.58,34,90,14,130680,66,38,170,30492,0.3,0.28
+North-East,Eastern Hardveld,84000,0.6,30,92,12,60480,72,30,77,12012,0.31,0.26
+North-West,Okavango and Ngamiland,102000,0.78,52,74,30,46920,46,62,67,26928,0.24,0.48
+South-East,Eastern Hardveld,190000,0.45,22,98,6,167200,88,8,205,5225,0.3,0.05
+Southern,Eastern Hardveld,128000,0.64,38,88,16,76800,60,46,102,25344,0.3,0.36

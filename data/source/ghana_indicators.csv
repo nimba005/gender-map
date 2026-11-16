@@ -1,0 +1,17 @@
+District,Zone,Female_Population,Exposure_Index,Per_hh_women_water_collection,Per_hh_access_safe_water,Per_hh_water_collection_time,Women_access_energy,Per_women_access_energy,Per_HH_Dep_Firewhood,Women_employ_energy,Female_Pop_Ag,Women_Land_Own,Women_Depedent_Ag
+Ahafo,Forest,280000,0.4,56,82,18,201600,72,54,258,95480,0.21,0.62
+Ashanti,Forest,2760000,0.32,42,92,12,2346000,85,28,2898,425040,0.24,0.28
+Bono,Transition,615000,0.42,54,84,17,467400,76,50,590,175890,0.22,0.52
+Bono East,Transition,600000,0.52,62,74,24,384000,64,64,504,211200,0.19,0.64
+Central,Coastal,1470000,0.44,52,88,15,1146600,78,42,1441,323400,0.24,0.4
+Eastern,Forest,1490000,0.4,54,84,18,1102600,74,48,1401,376970,0.24,0.46
+Greater Accra,Coastal,2770000,0.35,30,96,8,2548400,92,6,3102,91410,0.22,0.06
+North East,Northern Savannah,335000,0.86,86,56,42,140700,42,88,208,147400,0.09,0.8
+Northern,Northern Savannah,1160000,0.78,80,66,36,696000,60,76,928,446600,0.12,0.7
+Oti,Transition,370000,0.58,70,62,32,199800,54,76,274,146520,0.17,0.72
+Savannah,Northern Savannah,320000,0.84,84,54,44,140800,44,86,205,137280,0.1,0.78
+Upper East,Northern Savannah,670000,0.9,82,70,34,321600,48,84,456,287430,0.11,0.78
+Upper West,Northern Savannah,460000,0.88,84,68,36,211600,46,86,304,202400,0.1,0.8
+Volta,Coastal,860000,0.48,58,80,20,619200,72,56,791,245960,0.22,0.52
+Western,Coastal,1030000,0.4,50,86,16,803400,78,40,1009,226600,0.22,0.4
+Western North,Forest,430000,0.42,58,78,22,283800,66,62,370,160820,0.2,0.68

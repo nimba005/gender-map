@@ -1,116 +1,219 @@
 {% extends "base.html" %}
 {% block title %}Overview | AGNES Gender Hotspot Map{% endblock %}
 
+{% macro risk_class(risk) %}risk-{{ risk|lower|replace(' ', '-') }}{% endmacro %}
+
 {% block content %}
-<section class="hero">
-  <div class="hero-copy">
-    <span class="eyebrow">Gender, climate risk, and decision support</span>
-    <h1>Climate Change and Gender Vulnerability Hotspot Mapping in Kenya, Uganda, Botswana, and Ghana</h1>
+<section class="home-hero">
+  <div class="home-hero-copy">
+    <span class="hero-pill"><i></i>Climate and gender evidence for decision makers</span>
+    <h1>Where climate risk and gender vulnerability <em>meet</em>.</h1>
     <p>
-      Explore where climate exposure, gendered vulnerability, and adaptive capacity combine to create
-      priority hotspots across water, energy, and agriculture.
+      Explore hotspots across water, energy, and agriculture in Kenya, Uganda, Botswana, and Ghana,
+      and see which places need gender-responsive climate action first.
     </p>
     <div class="hero-actions">
-      <a class="button button-primary" href="{{ url_for('map_page') }}">Open Interactive Map</a>
-      <a class="button button-secondary" href="#study-scope">View Study Scope</a>
+      <a class="button button-accent" href="{{ url_for('map_page') }}">
+        Explore the interactive map
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </a>
+      <a class="button button-ghost" href="{{ url_for('methodology') }}">How the scores are built</a>
     </div>
+
+    <dl class="hero-stats">
+      <div><dt>Countries</dt><dd>{{ countries|length }}</dd></div>
+      <div><dt>Places mapped</dt><dd>{{ total_records }}</dd></div>
+      <div><dt>Sectors</dt><dd>{{ sectors|length }}</dd></div>
+      <div><dt>High or very high</dt><dd>{{ priority_total }}</dd></div>
+    </dl>
   </div>
 
-  <div class="hero-panel" aria-label="Study summary">
-    <div class="hero-stat">
-      <strong>4</strong>
-      <span>Countries in scope</span>
+  <aside class="snapshot-card" aria-label="Hotspot snapshot by country">
+    <div class="snapshot-head">
+      <div>
+        <span class="snapshot-kicker">Hotspot snapshot</span>
+        <strong>Composite risk by place</strong>
+      </div>
+      <span class="snapshot-live"><i></i>Current data</span>
     </div>
-    <div class="hero-stat">
-      <strong>3</strong>
-      <span>Priority sectors</span>
+    <div class="snapshot-grid">
+      {% for country in countries %}
+      <a class="snapshot-tile" href="{{ url_for('map_page') }}?country={{ country.country }}" aria-label="Open {{ country.country }} on the map">
+        {% if country.outline %}
+        <svg viewBox="-4 -4 {{ country.outline.width + 8 }} {{ country.outline.height + 8 }}" role="img" aria-label="{{ country.country }} risk map" preserveAspectRatio="xMidYMid meet">
+          {% for shape in country.outline.shapes %}
+          <path class="{{ risk_class(shape.risk) }}" d="{{ shape.d }}"><title>{{ shape.name }}: {{ shape.risk }}{% if shape.score is not none %} ({{ shape.score }}){% endif %}</title></path>
+          {% endfor %}
+        </svg>
+        {% endif %}
+        <span class="snapshot-label">
+          <strong>{{ country.country }}</strong>
+          <small>{{ country.record_count }} {{ country.admin_label|lower }}{% if country.average_score is not none %} &middot; avg {{ country.average_score }}{% endif %}</small>
+        </span>
+      </a>
+      {% endfor %}
     </div>
-    <div class="hero-stat">
-      <strong>47</strong>
-      <span>Kenya counties loaded</span>
+    <div class="snapshot-legend" aria-hidden="true">
+      <span><i class="risk-very-high"></i>Very high</span>
+      <span><i class="risk-high"></i>High</span>
+      <span><i class="risk-medium"></i>Medium</span>
+      <span><i class="risk-low"></i>Low</span>
+      <span><i class="risk-very-low"></i>Very low</span>
     </div>
+  </aside>
+</section>
+
+{% if has_illustrative %}
+<p class="data-banner">
+  <strong>Data status.</strong>
+  Kenya uses the supplied sector workbooks. Uganda, Botswana, and Ghana currently show illustrative
+  placeholder figures, not survey results, until their workbooks are uploaded.
+  <a href="{{ url_for('methodology') }}#data-status">Read more</a>
+</p>
+{% endif %}
+
+<section class="home-section" id="countries">
+  <header class="section-head">
+    <div>
+      <span class="eyebrow">Country workspaces</span>
+      <h2>Four countries, mapped below national level</h2>
+    </div>
+    <p>Open a country to see every county, district, or region with its scores, drivers, and report.</p>
+  </header>
+
+  <div class="country-grid">
+    {% for country in countries %}
+    <a class="country-tile" href="{{ url_for('map_page') }}?country={{ country.country }}">
+      <div class="country-tile-top">
+        <h3>{{ country.country }}</h3>
+        <span class="status-pill {{ 'is-illustrative' if country.illustrative else 'is-verified' }}">{{ 'Illustrative' if country.illustrative else 'Workbook data' }}</span>
+      </div>
+      <div class="country-score">
+        <strong>{{ country.average_score if country.average_score is not none else 'N/A' }}</strong>
+        <span>average score<br><b>{{ country.risk_level }} risk</b></span>
+      </div>
+      <div class="risk-strip" role="img" aria-label="Risk distribution: {% for item in country.risk_counts %}{{ item.count }} {{ item.risk }}{% if not loop.last %}, {% endif %}{% endfor %}">
+        {% for item in country.risk_counts %}<i class="{{ risk_class(item.risk) }}" style="width: {{ item.share }}%" title="{{ item.risk }}: {{ item.count }}"></i>{% endfor %}
+      </div>
+      <dl class="country-facts">
+        <div><dt>{{ country.admin_label }}</dt><dd>{{ country.record_count }}</dd></div>
+        <div><dt>High or very high</dt><dd>{{ country.priority_count }}</dd></div>
+        <div><dt>Highest hotspot</dt><dd>{{ country.highest_hotspot or 'N/A' }}</dd></div>
+      </dl>
+      <span class="tile-link">Open {{ country.country }} <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </a>
+    {% endfor %}
   </div>
 </section>
 
-<section class="section-grid" id="study-scope">
-  <article class="info-card">
-    <span class="card-kicker">What the map shows</span>
-    <h2>Hotspots are presented as practical oversight signals.</h2>
-    <p>
-      The dashboard combines exposure, sensitivity, and adaptive capacity into a normalized gender
-      hotspot score. Higher scores indicate places where gender-responsive climate action may need
-      closer attention.
-    </p>
+<section class="home-section" id="sectors">
+  <header class="section-head">
+    <div>
+      <span class="eyebrow">Sectors</span>
+      <h2>Three sectors where the burden falls differently on women</h2>
+    </div>
+    <p>Each sector has its own hotspot score, so a place can be low risk for water and high for energy.</p>
+  </header>
+
+  <div class="sector-grid">
+    {% set sector_copy = {
+      'Water': 'Who collects water, how long it takes, and whether households have a safe source.',
+      'Energy': 'Dependence on firewood, and women\'s access to modern energy and energy jobs.',
+      'Agriculture': 'Women\'s dependence on farming for income, and whether they own the land they work.'
+    } %}
+    {% for sector in sectors %}
+    <a class="sector-tile sector-{{ sector.name|lower }}" href="{{ url_for('map_page') }}?sector={{ sector.name }}">
+      <span class="sector-icon" aria-hidden="true">
+        {% if sector.name == 'Water' %}
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3s6 6.200 6 10.500a6 6 0 0 1-12 0C6 9.200 12 3 12 3Z"/></svg>
+        {% elif sector.name == 'Energy' %}
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3 5 13.500h6L10 21l8-10.500h-6L13 3Z"/></svg>
+        {% else %}
+        <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21v-9"/><path d="M12 12c0-4 3-6.500 7-6.500 0 4-3 6.500-7 6.500Z"/><path d="M12 15c0-3-2.300-5-6-5 0 3 2.300 5 6 5Z"/></svg>
+        {% endif %}
+      </span>
+      <h3>{{ sector.name }}</h3>
+      <p>{{ sector_copy[sector.name] }}</p>
+      <div class="sector-meta">
+        <span><b>{{ sector.average if sector.average is not none else 'N/A' }}</b> average score</span>
+        <span><b>{{ sector.priority_count }}</b> high or very high</span>
+      </div>
+      <span class="tile-link">View {{ sector.name|lower }} hotspots <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+    </a>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="home-section home-split">
+  <article class="panel">
+    <span class="eyebrow">Priority list</span>
+    <h2>Highest hotspots in each country</h2>
+    <ol class="rank-list">
+      {% for item in top_hotspots %}
+      <li>
+        <a href="{{ url_for('map_page') }}?country={{ item.country }}&amp;place={{ item.name|urlencode }}">
+          <span class="rank-number">{{ loop.index }}</span>
+          <span class="rank-name">
+            <strong>{{ item.name }}</strong>
+            <small>{{ item.country }}{% if item.top_sector %} &middot; {{ item.top_sector }}{% endif %}{% if item.illustrative %} &middot; illustrative{% endif %}</small>
+          </span>
+          <span class="rank-bar" aria-hidden="true"><i class="{{ risk_class(item.risk) }}" style="width: {{ item.score }}%"></i></span>
+          <span class="rank-score">{{ item.score }}</span>
+        </a>
+      </li>
+      {% endfor %}
+    </ol>
+    <a class="text-link" href="{{ url_for('map_page') }}">See every place on the map</a>
   </article>
 
-  <article class="info-card">
-    <span class="card-kicker">Current data</span>
-    <h2>Kenya county data is active from the supplied workbooks.</h2>
-    <p>
-      Water, energy, and agriculture indicators were processed into county-level metrics.
-      Uganda, Botswana, and Ghana are included as country study layers and are ready for their
-      detailed district or regional datasets.
-    </p>
+  <article class="panel">
+    <span class="eyebrow">How to read a score</span>
+    <h2>Three components, one 0 to 100 score</h2>
+    <ul class="component-list">
+      <li>
+        <span class="component-badge">E</span>
+        <div><strong>Exposure</strong><p>How strongly the place is exposed to climate hazards such as drought, flood, and heat.</p></div>
+      </li>
+      <li>
+        <span class="component-badge">S</span>
+        <div><strong>Sensitivity</strong><p>How much women's daily work and income depend on the resource under pressure.</p></div>
+      </li>
+      <li>
+        <span class="component-badge">A</span>
+        <div><strong>Adaptive capacity</strong><p>Access and assets that help women cope. Higher capacity lowers the hotspot score.</p></div>
+      </li>
+    </ul>
+    <div class="scale-bar" aria-label="Risk classes">
+      <span class="risk-very-low">0<b>Very low</b></span>
+      <span class="risk-low">20<b>Low</b></span>
+      <span class="risk-medium">40<b>Medium</b></span>
+      <span class="risk-high">60<b>High</b></span>
+      <span class="risk-very-high">75<b>Very high</b></span>
+    </div>
+    <a class="text-link" href="{{ url_for('methodology') }}">Read the full methodology</a>
   </article>
 </section>
 
-<section class="country-strip">
-  <a class="country-link-card country-link-card-active" href="{{ url_for('map_page') }}?country=Kenya">
-    <span class="card-kicker">Live country workspace</span>
-    <strong>Kenya</strong>
-    <span>County polygons and sector metrics loaded</span>
-    <small>Open the Kenya hotspot map and review county data by sector, score, and risk class.</small>
-    <em>Open country overview map</em>
-  </a>
-  <a class="country-link-card" href="{{ url_for('map_page') }}?country=Uganda">
-    <span class="card-kicker">Study layer</span>
-    <strong>Uganda</strong>
-    <span>Country study layer ready for district data</span>
-    <small>Use the country view now and activate district-level hotspot detail when the dataset is uploaded.</small>
-    <em>Open country overview map</em>
-  </a>
-  <a class="country-link-card" href="{{ url_for('map_page') }}?country=Botswana">
-    <span class="card-kicker">Study layer</span>
-    <strong>Botswana</strong>
-    <span>Country study layer ready for district data</span>
-    <small>Review the national hotspot workspace and prepare for district-level uploads and analysis.</small>
-    <em>Open country overview map</em>
-  </a>
-  <a class="country-link-card" href="{{ url_for('map_page') }}?country=Ghana">
-    <span class="card-kicker">Study layer</span>
-    <strong>Ghana</strong>
-    <span>Country study layer ready for regional data</span>
-    <small>Start from the Ghana country layer and move into regional hotspot analysis when records are added.</small>
-    <em>Open country overview map</em>
-  </a>
+<section class="home-section">
+  <header class="section-head">
+    <div>
+      <span class="eyebrow">How to use it</span>
+      <h2>From overview to action in four steps</h2>
+    </div>
+  </header>
+  <ol class="steps-grid">
+    <li><span>01</span><strong>Pick a country</strong><p>Start with all four countries or open a single one.</p></li>
+    <li><span>02</span><strong>Choose a sector</strong><p>Compare water, energy, and agriculture patterns.</p></li>
+    <li><span>03</span><strong>Open a place</strong><p>Read its scores, drivers, and suggested priorities.</p></li>
+    <li><span>04</span><strong>Share the evidence</strong><p>Copy a link to the exact view or download the records as a spreadsheet.</p></li>
+  </ol>
 </section>
 
-<section class="workflow-section">
+<section class="cta-band">
   <div>
-    <span class="eyebrow">How to use it</span>
-    <h2>Move from overview to action in four steps.</h2>
+    <h2>Ready to find the priority places?</h2>
+    <p>Filter by country, sector, and risk class, then open any place for its full report.</p>
   </div>
-  <div class="workflow-grid">
-    <article>
-      <span>01</span>
-      <strong>Select a country</strong>
-      <p>Start with all four study countries or focus on one country.</p>
-    </article>
-    <article>
-      <span>02</span>
-      <strong>Choose a sector</strong>
-      <p>Compare water, energy, and agriculture hotspot patterns.</p>
-    </article>
-    <article>
-      <span>03</span>
-      <strong>Read the map and cards</strong>
-      <p>Use color, rank, and county notes to understand priority areas.</p>
-    </article>
-    <article>
-      <span>04</span>
-      <strong>Prepare decisions</strong>
-      <p>Use the signals to guide research, programming, policy dialogue, and investment targeting.</p>
-    </article>
-  </div>
+  <a class="button button-accent" href="{{ url_for('map_page') }}">Open the interactive map</a>
 </section>
 {% endblock %}

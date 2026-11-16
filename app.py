@@ -22,9 +22,18 @@ from flask import (
     session,
     url_for,
 )
-import psycopg
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
+
+try:
+    import psycopg
+except ImportError:  # Postgres driver is optional; the app falls back to SQLite without it
+    psycopg = None
+
+try:
+    import redis
+except ImportError:  # Redis is optional; without it the payload is rebuilt on every request
+    redis = None
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -32,6 +41,13 @@ load_dotenv(BASE_DIR / ".env")
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "dev-gender-hotspot-secret")
+
+if os.getenv("BEHIND_PROXY", "0") == "1":
+    # Behind Caddy: trust one proxy hop for scheme/host and only send the session cookie over HTTPS.
+    from werkzeug.middleware.proxy_fix import ProxyFix
+
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
+    app.config.update(SESSION_COOKIE_SECURE=True, SESSION_COOKIE_HTTPONLY=True, SESSION_COOKIE_SAMESITE="Lax")
 
 DATA_DIR = BASE_DIR / "data"
 INSTANCE_DIR = BASE_DIR / "instance"
@@ -50,13 +66,61 @@ for folder in (INSTANCE_DIR, PDF_DIR, EXCEL_DIR, AI_IMAGE_DIR):
 
 NS = {"m": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 COUNTRY_META = {
-    "Kenya": {"center": [-0.0236, 37.9062], "zoom": 6, "admin_label": "Counties", "geometry_file": "kenya_districts.geojson"},
-    "Uganda": {"center": [1.3733, 32.2903], "zoom": 6, "admin_label": "Districts", "geometry_file": None},
-    "Botswana": {"center": [-22.3285, 24.6849], "zoom": 6, "admin_label": "Districts", "geometry_file": None},
-    "Ghana": {"center": [7.9465, -1.0232], "zoom": 6, "admin_label": "Regions", "geometry_file": None},
+    "Kenya": {"center": [-0.0236, 37.9062], "zoom": 6, "admin_label": "Counties", "place_label": "County", "geometry_file": "kenya_counties.geojson"},
+    "Uganda": {"center": [1.3733, 32.2903], "zoom": 7, "admin_label": "Districts", "place_label": "District", "geometry_file": "uganda_districts.geojson"},
+    "Botswana": {"center": [-22.3285, 24.6849], "zoom": 6, "admin_label": "Districts", "place_label": "District", "geometry_file": "botswana_districts.geojson"},
+    "Ghana": {"center": [7.9465, -1.0232], "zoom": 7, "admin_label": "Regions", "place_label": "Region", "geometry_file": "ghana_regions.geojson"},
 }
 SECTORS = ["Water", "Energy", "Agriculture"]
 DEFAULT_OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+REDIS_URL = (os.getenv("REDIS_URL") or "").strip()
+PAYLOAD_CACHE_KEY = "gender-map:hotspot-payload:v1"
+PAYLOAD_CACHE_SECONDS = int(os.getenv("PAYLOAD_CACHE_SECONDS", "300"))
+_redis_client = None
+
+
+def cache_client():
+    """Return a Redis client, or None when Redis is not configured or not reachable."""
+    global _redis_client
+    if not REDIS_URL or redis is None:
+        return None
+    if _redis_client is None:
+        _redis_client = redis.Redis.from_url(REDIS_URL, socket_timeout=2, socket_connect_timeout=2, decode_responses=True)
+    return _redis_client
+
+
+def cached_payload():
+    client = cache_client()
+    if client is None:
+        return None
+    try:
+        value = client.get(PAYLOAD_CACHE_KEY)
+        return json.loads(value) if value else None
+    except Exception as exc:
+        print(f"WARNING: Redis read failed, rebuilding payload: {exc}")
+        return None
+
+
+def store_payload(payload):
+    client = cache_client()
+    if client is None:
+        return
+    try:
+        client.setex(PAYLOAD_CACHE_KEY, PAYLOAD_CACHE_SECONDS, json.dumps(payload))
+    except Exception as exc:
+        print(f"WARNING: Redis write failed: {exc}")
+
+
+def clear_payload_cache():
+    """Call after any admin or AI write so the public map shows the change immediately."""
+    client = cache_client()
+    if client is None:
+        return
+    try:
+        client.delete(PAYLOAD_CACHE_KEY)
+    except Exception as exc:
+        print(f"WARNING: Redis delete failed: {exc}")
 
 
 def db():
@@ -116,6 +180,8 @@ class PostgresCompatCursor:
 
 class PostgresCompatConnection:
     def __init__(self, dsn):
+        if psycopg is None:
+            raise RuntimeError("psycopg is not installed (pip install \"psycopg[binary]\")")
         self._conn = psycopg.connect(dsn, row_factory=psycopg.rows.dict_row)
 
     def cursor(self):
@@ -549,6 +615,7 @@ def process_excel_upload(country, sector, path, source_filename):
                 ),
             )
             saved += 1
+    clear_payload_cache()
     return saved
 
 
@@ -647,8 +714,14 @@ def parse_json_text(text):
 def prompt_for_ai_narrative(record, sector):
     metrics = record.get("metrics", {}).get(sector, {})
     all_metrics = json.dumps(record.get("metrics", {}), indent=2)
+    place_label = COUNTRY_META.get(record.get("country"), {}).get("place_label", "County").lower()
+    data_caution = (
+        "\nIMPORTANT: the dashboard metrics for this place are illustrative placeholder figures, not survey results. "
+        "State this clearly as the first item in data_cautions and avoid presenting the figures as measured values.\n"
+        if record.get("data_status") == "illustrative" else ""
+    )
     return f"""
-Create a professional county-level climate change and gender vulnerability report for {record.get('name')}, {record.get('country')}, focused on {sector}.
+Create a professional {place_label}-level climate change and gender vulnerability report for {record.get('name')}, {record.get('country')}, focused on {sector}.
 
 Use these dashboard metrics:
 Selected sector metrics: {json.dumps(metrics, indent=2)}
@@ -656,10 +729,10 @@ All sector metrics: {all_metrics}
 Composite score: {record.get('composite_score')}
 Composite risk: {record.get('risk_level')}
 Top pressure sector: {record.get('top_sector')}
-
+{data_caution}
 You may use web search for general local context, climate stressors, livelihoods, infrastructure, gender and development context, but do not include citations, footnotes, URLs, or named external website references in the final answer.
 
-Use the metrics as the anchor of the report. Explain what the score pattern means, which dimensions are elevated, which sector is under the strongest pressure, and what that implies for county planning and programme design. Keep the language specific, decision-useful, and suitable for policymakers, researchers, and programme teams.
+Use the metrics as the anchor of the report. Explain what the score pattern means, which dimensions are elevated, which sector is under the strongest pressure, and what that implies for {place_label} planning and programme design. Keep the language specific, decision-useful, and suitable for policymakers, researchers, and programme teams.
 
 Return only valid JSON with this shape:
 {{
@@ -671,7 +744,7 @@ Return only valid JSON with this shape:
   "priority_actions": ["action with who/what emphasis", "action", "action", "action"],
   "monitoring_signals": ["what to monitor next", "what to monitor next", "what to monitor next"],
   "data_cautions": ["data caution", "data caution"],
-  "references": ["short titles of county-related reports, datasets, or institutional sources that informed the analysis"],
+  "references": ["short titles of {place_label}-related reports, datasets, or institutional sources that informed the analysis"],
   "image_alt": "short alt text for a generated editorial-style image"
 }}
 
@@ -748,10 +821,20 @@ def recompute_record(record):
 
 
 def merged_hotspot_payload():
+    payload = cached_payload()
+    if payload is None:
+        payload = build_hotspot_payload()
+        store_payload(payload)
+    return payload
+
+
+def build_hotspot_payload():
     payload = base_hotspot_payload()
     records = payload.setdefault("records", {})
     for country in COUNTRY_META:
         records.setdefault(country, [])
+    base_countries = {item.get("country"): item for item in payload.get("countries", [])}
+    uploaded_countries = set()
 
     with db() as conn:
         for row in conn.execute("SELECT * FROM uploaded_metrics ORDER BY place_name"):
@@ -774,6 +857,8 @@ def merged_hotspot_payload():
                 "indicators": json.loads(row["indicators_json"] or "[]"),
                 "source_filename": row["source_filename"],
             }
+            record["data_status"] = "uploaded"
+            uploaded_countries.add(country)
             recompute_record(record)
 
         report_map = {}
@@ -809,6 +894,20 @@ def merged_hotspot_payload():
         scores = [item.get("composite_score") for item in country_records if item.get("composite_score") is not None]
         average = rounded(sum(scores) / len(scores)) if scores else None
         highest = max(country_records, key=lambda item: item.get("composite_score") or -1) if scores else None
+        base = base_countries.get(country, {})
+        illustrative_count = sum(1 for item in country_records if item.get("data_status") == "illustrative")
+        if not country_records:
+            status = "Country study layer"
+            study_note = "Upload Excel data from the admin dashboard to activate detailed records."
+        elif country in uploaded_countries and illustrative_count:
+            status = "Uploaded and illustrative data"
+            study_note = "Uploaded workbook data is shown where available. Remaining places still use illustrative placeholder figures."
+        elif country in uploaded_countries:
+            status = "Admin data loaded"
+            study_note = "Admin-managed data is available for this country."
+        else:
+            status = base.get("status") or "Data loaded"
+            study_note = base.get("study_note") or "Hotspot data is available for this country."
         countries.append({
             **meta,
             "country": country,
@@ -817,16 +916,126 @@ def merged_hotspot_payload():
             "risk_level": score_risk(average) if scores else "Data pending",
             "highest_hotspot": highest["name"] if highest else None,
             "top_sector": highest.get("top_sector") if highest else None,
-            "status": "Data loaded" if country_records else "Country study layer",
-            "study_note": "Admin-managed data is available for this country." if country_records else "Upload Excel data from the admin dashboard to activate detailed records.",
+            "status": status,
+            "study_note": study_note,
+            "illustrative": bool(illustrative_count),
         })
     payload["countries"] = countries
     return payload
 
 
+RISK_CLASSES = ["Very High", "High", "Medium", "Low", "Very Low"]
+_hero_shapes = None
+
+
+def hero_shapes():
+    """Simplified outlines used for the home page thumbnails (built by tools/build_hero_shapes.py)."""
+    global _hero_shapes
+    if _hero_shapes is None:
+        path = DATA_DIR / "hero_shapes.json"
+        _hero_shapes = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+    return _hero_shapes
+
+
+def home_context():
+    payload = merged_hotspot_payload()
+    records = payload.get("records", {})
+    shapes = hero_shapes()
+    countries = []
+    for country in payload["countries"]:
+        name = country["country"]
+        country_records = records.get(name, [])
+        by_name = {record["name"]: record for record in country_records}
+        counts = {risk: sum(1 for record in country_records if record.get("risk_level") == risk) for risk in RISK_CLASSES}
+        total = sum(counts.values()) or 1
+        outline = shapes.get(name) or {}
+        countries.append({
+            **country,
+            "risk_counts": [
+                {"risk": risk, "count": counts[risk], "share": round(counts[risk] * 100 / total, 2)}
+                for risk in RISK_CLASSES if counts[risk]
+            ],
+            "priority_count": counts["Very High"] + counts["High"],
+            "outline": {
+                "width": outline.get("width"),
+                "height": outline.get("height"),
+                "shapes": [
+                    {
+                        "name": shape["name"],
+                        "d": shape["d"],
+                        "risk": (by_name.get(shape["name"]) or {}).get("risk_level") or "No data",
+                        "score": (by_name.get(shape["name"]) or {}).get("composite_score"),
+                    }
+                    for shape in outline.get("shapes", [])
+                ],
+            } if outline else None,
+        })
+
+    all_records = [record for items in records.values() for record in items if record.get("composite_score") is not None]
+    # Two highest places per country, so one country's scale does not crowd out the others.
+    top_hotspots = []
+    for items in records.values():
+        scored = [record for record in items if record.get("composite_score") is not None]
+        top_hotspots.extend(sorted(scored, key=lambda record: record["composite_score"], reverse=True)[:2])
+    top_hotspots.sort(key=lambda record: record["composite_score"], reverse=True)
+    illustrative = set(payload.get("meta", {}).get("illustrative_countries", []))
+    sectors = []
+    for sector in SECTORS:
+        scores = [
+            record["metrics"][sector]["gender_hotspot_score"]
+            for record in all_records
+            if (record.get("metrics", {}).get(sector) or {}).get("gender_hotspot_score") is not None
+        ]
+        sectors.append({
+            "name": sector,
+            "average": rounded(sum(scores) / len(scores)) if scores else None,
+            "priority_count": sum(1 for score in scores if score >= 60),
+        })
+    return {
+        "countries": countries,
+        "total_records": len(all_records),
+        "priority_total": sum(1 for record in all_records if record["composite_score"] >= 60),
+        "top_hotspots": [
+            {
+                "name": record["name"],
+                "country": record["country"],
+                "score": record["composite_score"],
+                "risk": record["risk_level"],
+                "top_sector": record.get("top_sector"),
+                "illustrative": record.get("data_status") == "illustrative",
+            }
+            for record in top_hotspots
+        ],
+        "sectors": sectors,
+        "has_illustrative": any(country.get("illustrative") for country in countries),
+    }
+
+
 @app.route("/")
 def home():
-    return render_template("home.html", page="home")
+    return render_template("home.html", page="home", **home_context())
+
+
+@app.route("/methodology")
+def methodology():
+    payload = merged_hotspot_payload()
+    return render_template(
+        "methodology.html",
+        page="methodology",
+        countries=payload["countries"],
+        boundary_sources=payload.get("meta", {}).get("boundary_sources", ""),
+    )
+
+
+@app.route("/healthz")
+def healthz():
+    """Liveness check for Docker and uptime monitors: confirms the database answers."""
+    try:
+        with db() as conn:
+            conn.execute("SELECT 1").fetchone()
+    except Exception as exc:
+        return jsonify({"status": "error", "detail": str(exc)}), 503
+    return jsonify({"status": "ok", "cache": "redis" if cache_client() is not None else "none"})
 
 
 @app.route("/map")
@@ -896,6 +1105,7 @@ def ai_narrative_api():
                 datetime.utcnow().isoformat(),
             ),
         )
+    clear_payload_cache()
 
     return jsonify({
         "country": country,
@@ -1009,7 +1219,8 @@ def admin_save_report():
                 datetime.utcnow().isoformat(),
             ),
         )
-    flash("County report saved and published to the frontend.", "success")
+    clear_payload_cache()
+    flash("Report saved and published to the frontend.", "success")
     return redirect(url_for("admin_dashboard"))
 
 
@@ -1031,7 +1242,8 @@ def admin_upload_document():
             "INSERT INTO county_documents (country, place_name, sector, title, filename, original_filename, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
             (country, place, sector, title, filename, file.filename, datetime.utcnow().isoformat()),
         )
-    flash("PDF document uploaded and linked to the frontend county report.", "success")
+    clear_payload_cache()
+    flash("PDF document uploaded and linked to the frontend report.", "success")
     return redirect(url_for("admin_dashboard"))
 
 

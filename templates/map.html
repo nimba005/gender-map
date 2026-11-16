@@ -54,12 +54,13 @@
       </label>
 
       <label>
-        <span>Search county / region</span>
+        <span>Search county / district / region</span>
         <input id="searchInput" type="search" placeholder="Type a place name">
       </label>
     </div>
 
     <div class="metric-note" id="metricNote"></div>
+    <div class="data-notice" id="dataNotice" hidden></div>
     <div class="filter-actions">
       <button class="button button-secondary filter-reset" id="resetFilters" type="button">Reset to all sectors and countries</button>
     </div>
@@ -138,6 +139,14 @@
         </div>
         <div class="records-tools">
           <button class="button button-secondary records-back-button" id="recordsBackButton" type="button" hidden>Back to all countries</button>
+          <button class="tool-button" id="copyLinkButton" type="button" title="Copy a link to this exact view">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
+            <span>Copy link</span>
+          </button>
+          <button class="tool-button" id="downloadCsvButton" type="button" title="Download the visible records as a spreadsheet (CSV)">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>
+            <span>Download CSV</span>
+          </button>
           <select id="sortSelect" aria-label="Sort records">
             <option value="score_desc">Score: high to low</option>
             <option value="score_asc">Score: low to high</option>
@@ -147,9 +156,13 @@
         </div>
       </div>
       <div class="record-grid" id="recordGrid"></div>
+      <div class="show-more-row" id="showMoreRow" hidden>
+        <span id="showMoreCount"></span>
+        <button class="button button-secondary" id="showMoreButton" type="button">Show more</button>
+      </div>
       <div class="empty-state" id="emptyState" hidden>
-        <h3>No detailed records match this view yet.</h3>
-        <p>Select Kenya to view county-level hotspot data from the supplied workbooks. Uganda, Botswana, and Ghana are ready for their detailed datasets.</p>
+        <h3>No records match this view.</h3>
+        <p>Try clearing the search box or choosing a different risk level, sector, or country.</p>
       </div>
     </section>
   </section>
