@@ -2104,3 +2104,26 @@ main {
   font-size: 12px;
   line-height: 1.45;
 }
+
+/* ---------- AGNES logo in the header and footer ---------- */
+.brand-logo {
+  display: block;
+  flex: none;
+  width: auto;
+  height: 44px;
+  border-radius: 8px;
+}
+
+.site-header .brand-text strong {
+  letter-spacing: 0;
+}
+
+.footer-brand .brand-logo {
+  height: 48px;
+}
+
+@media (max-width: 520px) {
+  .brand-logo {
+    height: 38px;
+  }
+}

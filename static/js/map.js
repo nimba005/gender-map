@@ -454,30 +454,6 @@ function popupForRecord(record) {
   `;
 }
 
-function sectorReportRows(record) {
-  return hotspotData.meta.sectors.map((sector) => {
-    const metrics = record.metrics?.[sector] || {};
-    const indicators = (metrics.indicators || []).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
-    return `
-      <article class="report-sector-card">
-        <div>
-          <span class="card-kicker">${escapeHtml(sector)}</span>
-          <h4>${escapeHtml(metrics.risk_level || "No data")} risk</h4>
-        </div>
-        <div class="report-metrics">
-          <span>Hotspot <strong>${formatScore(metrics.gender_hotspot_score)}</strong></span>
-          <span>Vulnerability <strong>${formatScore(metrics.vulnerability_score)}</strong></span>
-          <span>Exposure <strong>${formatScore(metrics.exposure)}</strong></span>
-          <span>Sensitivity <strong>${formatScore(metrics.sensitivity)}</strong></span>
-          <span>Adaptive capacity <strong>${formatScore(metrics.adaptive_capacity)}</strong></span>
-          <span>Raw value <strong>${metrics.raw_value == null ? "N/A" : Number(metrics.raw_value).toLocaleString()}</strong></span>
-        </div>
-        <ul>${indicators}</ul>
-      </article>
-    `;
-  }).join("");
-}
-
 function narrativeTextValue(narrative, ...keys) {
   for (const key of keys) {
     const value = narrative?.[key];
@@ -771,78 +747,6 @@ function dataSourceSentence(record) {
   return "Figures come from the supplied water, energy, and agriculture sector workbooks.";
 }
 
-function automaticBrief(record) {
-  const sectors = hotspotData.meta.sectors.filter((sector) => record.metrics?.[sector]?.gender_hotspot_score != null);
-  if (!sectors.length) return "";
-
-  const peers = (hotspotData.records[record.country] || [])
-    .filter((item) => item.composite_score != null)
-    .sort((a, b) => b.composite_score - a.composite_score);
-  const rank = peers.findIndex((item) => item.name === record.name) + 1;
-  const place = placeLabel(record.country).toLowerCase();
-  const top = record.top_sector;
-  const topMetrics = record.metrics?.[top] || {};
-
-  const overview = [
-    `${record.name}${record.zone ? ` (${record.zone})` : ""} has a composite gender hotspot score of ${formatScore(record.composite_score)}, classed as ${record.risk_level}.`
-      + (rank ? ` It ranks ${rank} of ${peers.length} ${adminLabel(record.country).toLowerCase()} in ${record.country}, where 1 is the most severe hotspot.` : ""),
-    top ? `${top} is the strongest pressure in this ${place}, with a hotspot score of ${formatScore(topMetrics.gender_hotspot_score)} (${topMetrics.risk_level}).` : ""
-  ].filter(Boolean).join("\n");
-
-  const findings = sectors.map((sector) => {
-    const metrics = record.metrics[sector];
-    const driver = leadDriver(metrics);
-    const indicators = (metrics.indicators || []).join("; ");
-    return `${sector}: ${formatScore(metrics.gender_hotspot_score)} (${metrics.risk_level}). Exposure ${formatScore(metrics.exposure)}, sensitivity ${formatScore(metrics.sensitivity)}, adaptive capacity ${formatScore(metrics.adaptive_capacity)}.`
-      + (driver ? ` Main driver: ${driver.label}.` : "")
-      + (indicators ? ` ${indicators}.` : "");
-  }).join("\n");
-
-  const ranked = [...sectors].sort((a, b) => record.metrics[b].gender_hotspot_score - record.metrics[a].gender_hotspot_score);
-  const recommendations = ranked.map((sector) => {
-    const driver = leadDriver(record.metrics[sector]);
-    return driver ? `${sector}: ${DRIVER_ACTIONS[sector]?.[driver.key] || ""}` : "";
-  }).filter(Boolean).join("\n");
-
-  return `
-    <article class="report-narrative">
-      <div>
-        <span class="card-kicker">Automatic data brief</span>
-        <h3>${escapeHtml(record.name)} at a glance</h3>
-      </div>
-      ${textBlock("Overview", overview)}
-      ${textBlock("Sector readings", findings)}
-      ${textBlock("Suggested priorities", recommendations)}
-      ${textBlock("Data note", `${dataSourceSentence(record)}\nThis brief is generated from the map metrics. Admins can replace it with a written narrative from the admin dashboard.`)}
-    </article>
-  `;
-}
-
-function adminReportSections(record) {
-  const reports = record.reports || [];
-  if (!reports.length) {
-    return automaticBrief(record) || `
-      <article class="report-text-block">
-        <h3>Admin narrative</h3>
-        <p>No narrative or metrics are available for this place yet. Use the admin dashboard to upload data or publish a report.</p>
-      </article>
-    `;
-  }
-
-  return reports.map((report) => `
-    <article class="report-narrative">
-      <div>
-        <span class="card-kicker">${escapeHtml(report.sector || "All sectors")}</span>
-        <h3>${escapeHtml(report.title)}</h3>
-      </div>
-      ${textBlock("Overview", report.overview)}
-      ${textBlock("Key findings", report.findings)}
-      ${textBlock("Recommendations", report.recommendations)}
-      ${textBlock("Methodology and notes", report.methodology)}
-    </article>
-  `).join("");
-}
-
 function listItems(items) {
   const values = Array.isArray(items) ? items : [];
   return values.length ? `<ul>${values.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>` : "";
@@ -1078,41 +982,264 @@ function clearSelectedRecord() {
   syncUrl();
 }
 
-function renderFullReport(record = selectedRecord) {
-  if (!record) return;
-  const existing = document.getElementById("fullReport");
+const COMPONENT_HELP = {
+  exposure: "Climate hazards such as drought, flood, and heat",
+  sensitivity: "How far women's work and income depend on this resource",
+  adaptive_capacity: "Access and assets that help women cope. Higher is better"
+};
+const SCORE_THRESHOLDS = [20, 40, 60, 75];
+let countryReportSort = { key: "composite", dir: -1 };
 
-  const section = document.createElement("section");
-  section.id = "fullReport";
-  section.className = "full-report";
-  section.innerHTML = `
+function riskChip(risk) {
+  const label = risk || "No data";
+  return `<span class="rp-chip"><i style="background:${RISK_COLORS[label] || RISK_COLORS["No data"]}"></i>${escapeHtml(label)}</span>`;
+}
+
+function scoreMeter(value, tone = "") {
+  const number = Number(value);
+  const width = Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : 0;
+  const ticks = SCORE_THRESHOLDS.map((mark) => `<b style="left:${mark}%"></b>`).join("");
+  return `<span class="rp-meter ${tone}" role="img" aria-label="${formatScore(value)} out of 100"><i style="width:${width}%"></i>${ticks}</span>`;
+}
+
+function average(values) {
+  const numbers = values.map(Number).filter(Number.isFinite);
+  return numbers.length ? numbers.reduce((sum, value) => sum + value, 0) / numbers.length : null;
+}
+
+function countryRecords(country) {
+  return hotspotData.records?.[country] || [];
+}
+
+function sectorAverage(country, sector) {
+  return average(countryRecords(country).map((item) => item.metrics?.[sector]?.gender_hotspot_score).filter((value) => value != null));
+}
+
+function rankInCountry(record) {
+  const peers = countryRecords(record.country)
+    .filter((item) => item.composite_score != null)
+    .sort((a, b) => b.composite_score - a.composite_score);
+  return { rank: peers.findIndex((item) => item.name === record.name) + 1, total: peers.length };
+}
+
+function dataStatusLabel(record) {
+  if (record.data_status === "illustrative") return "Illustrative";
+  if (record.data_status === "uploaded") return "Uploaded workbook";
+  return "Sector workbooks";
+}
+
+function reportShell(kicker, title, body) {
+  return `
     <div class="full-report-head">
       <div>
-        <span class="card-kicker">Full ${escapeHtml(placeLabel(record.country).toLowerCase())} report${record.data_status === "illustrative" ? " - illustrative data" : ""}</span>
-        <h2>${escapeHtml(record.name)} gender hotspot report</h2>
-        <p>
-          This report brings together water, energy, and agriculture indicators for ${escapeHtml(record.name)}.
-          Use it to understand the data behind the map color and identify which sector requires the strongest gender-responsive attention.
-        </p>
+        <span class="rp-eyebrow">${kicker}</span>
+        <h2>${title}</h2>
       </div>
-      <button class="button button-secondary" type="button" data-close-report>Close report</button>
+      <div class="rp-actions">
+        <button class="button button-secondary" type="button" data-print-report>Print or save PDF</button>
+        <button class="button button-primary" type="button" data-close-report>Close</button>
+      </div>
     </div>
-    <div class="report-summary">
-      <article><span>Composite score</span><strong>${formatScore(record.composite_score)}</strong></article>
-      <article><span>Composite risk</span><strong>${escapeHtml(record.risk_level)}</strong></article>
-      <article><span>Highest pressure sector</span><strong>${escapeHtml(record.top_sector || "N/A")}</strong></article>
-      <article><span>Selected sector</span><strong>${escapeHtml(selectedSectorLabel())}</strong></article>
-    </div>
-    <div class="report-reading-grid">
-      ${adminReportSections(record)}
-      ${aiNarrativeSections(record)}
-      ${documentSections(record)}
-    </div>
-    <div class="report-sector-grid">
-      ${sectorReportRows(record)}
-    </div>
+    ${body}
   `;
+}
 
+function sectionHead(eyebrow, title, note) {
+  return `
+    <header class="rp-section-head">
+      <div><span class="rp-eyebrow">${escapeHtml(eyebrow)}</span><h3>${escapeHtml(title)}</h3></div>
+      ${note ? `<p>${escapeHtml(note)}</p>` : ""}
+    </header>
+  `;
+}
+
+function placeHero(record) {
+  const { rank, total } = rankInCountry(record);
+  const admin = adminLabel(record.country).toLowerCase();
+  const countryAverage = average(countryRecords(record.country).map((item) => item.composite_score).filter((value) => value != null));
+  const summary = [
+    `${record.name} scores ${formatScore(record.composite_score)} out of 100, which places it in the ${record.risk_level} risk class.`,
+    rank ? `It ranks ${rank} of ${total} ${admin} in ${record.country}, where 1 is the most severe hotspot.` : "",
+    record.top_sector ? `${record.top_sector} is the sector under the most pressure.` : ""
+  ].filter(Boolean).join(" ");
+  return `
+    <section class="rp-hero">
+      <div class="rp-hero-score">
+        <span>Composite gender hotspot score</span>
+        <strong>${formatScore(record.composite_score)}<small>/ 100</small></strong>
+        ${scoreMeter(record.composite_score, "is-light")}
+        <div class="rp-hero-scale"><span>0</span><span>Low 20</span><span>Medium 40</span><span>High 60</span><span>Very high 75</span></div>
+      </div>
+      <div class="rp-hero-copy">
+        ${riskChip(record.risk_level)}
+        <p>${escapeHtml(summary)}</p>
+      </div>
+      <dl class="rp-hero-facts">
+        <div><dt>Rank in ${escapeHtml(record.country)}</dt><dd>${rank ? `${rank} <small>of ${total}</small>` : "N/A"}</dd></div>
+        <div><dt>${escapeHtml(record.country)} average</dt><dd>${formatScore(countryAverage)}</dd></div>
+        <div><dt>Strongest pressure</dt><dd>${escapeHtml(record.top_sector || "N/A")}</dd></div>
+        <div><dt>Data source</dt><dd>${escapeHtml(dataStatusLabel(record))}</dd></div>
+      </dl>
+    </section>
+  `;
+}
+
+function indicatorRows(indicators) {
+  return (indicators || []).map((item) => {
+    const text = String(item);
+    const split = text.indexOf(": ");
+    return split > 0
+      ? `<div><dt>${escapeHtml(text.slice(0, split))}</dt><dd>${escapeHtml(text.slice(split + 2))}</dd></div>`
+      : `<div><dt>${escapeHtml(text)}</dt><dd></dd></div>`;
+  }).join("");
+}
+
+function placeSectors(record) {
+  const cards = hotspotData.meta.sectors.map((sector) => {
+    const metrics = record.metrics?.[sector];
+    if (!metrics || metrics.gender_hotspot_score == null) {
+      return `<article class="rp-sector"><header><h4>${escapeHtml(sector)}</h4>${riskChip("No data")}</header><p class="rp-muted">No figures have been loaded for this sector yet.</p></article>`;
+    }
+    const driver = leadDriver(metrics);
+    const sectorMean = sectorAverage(record.country, sector);
+    const gap = sectorMean == null ? null : metrics.gender_hotspot_score - sectorMean;
+    const component = (key, label, tone) => `
+      <div class="rp-component">
+        <div><strong>${label}</strong><span>${COMPONENT_HELP[key]}</span></div>
+        ${scoreMeter(metrics[key], tone)}
+        <b>${formatScore(metrics[key])}</b>
+      </div>`;
+    return `
+      <article class="rp-sector ${record.top_sector === sector ? "is-top" : ""}">
+        <header>
+          <div>
+            <h4>${escapeHtml(sector)}</h4>
+            ${record.top_sector === sector ? '<span class="rp-tag">Strongest pressure</span>' : ""}
+          </div>
+          <div class="rp-sector-score"><strong>${formatScore(metrics.gender_hotspot_score)}</strong>${riskChip(metrics.risk_level)}</div>
+        </header>
+        <p class="rp-compare">
+          ${gap == null ? "" : `<b class="${gap > 0 ? "is-worse" : "is-better"}">${gap > 0 ? "+" : ""}${gap.toFixed(1)}</b> against the ${escapeHtml(record.country)} average of ${formatScore(sectorMean)}.`}
+          ${driver ? ` Main driver: <b>${escapeHtml(driver.label)}</b>.` : ""}
+        </p>
+        <div class="rp-components">
+          ${component("exposure", "Exposure", "is-risk")}
+          ${component("sensitivity", "Sensitivity", "is-risk")}
+          ${component("adaptive_capacity", "Adaptive capacity", "is-good")}
+        </div>
+        ${(metrics.indicators || []).length ? `<dl class="rp-indicators">${indicatorRows(metrics.indicators)}</dl>` : ""}
+      </article>
+    `;
+  }).join("");
+  return `
+    <section class="rp-section">
+      ${sectionHead("Sector by sector", "Where the pressure comes from", "Each sector has its own 0 to 100 hotspot score, built from exposure, sensitivity, and adaptive capacity.")}
+      <div class="rp-sector-grid">${cards}</div>
+    </section>
+  `;
+}
+
+function placePriorities(record) {
+  const sectors = hotspotData.meta.sectors
+    .filter((sector) => record.metrics?.[sector]?.gender_hotspot_score != null)
+    .sort((a, b) => record.metrics[b].gender_hotspot_score - record.metrics[a].gender_hotspot_score);
+  const items = sectors.map((sector) => {
+    const driver = leadDriver(record.metrics[sector]);
+    const action = driver ? DRIVER_ACTIONS[sector]?.[driver.key] : "";
+    return action ? `
+      <li>
+        <span class="rp-step"></span>
+        <div>
+          <strong>${escapeHtml(sector)} <small>${formatScore(record.metrics[sector].gender_hotspot_score)} &middot; ${escapeHtml(record.metrics[sector].risk_level)}</small></strong>
+          <p>${escapeHtml(action)}</p>
+          <em>Suggested because the main driver is ${escapeHtml(driver.label)}.</em>
+        </div>
+      </li>` : "";
+  }).join("");
+  if (!items) return "";
+  return `
+    <section class="rp-section">
+      ${sectionHead("Suggested priorities", "Where to act first", "Ordered from the highest sector score. These are starting points drawn from the figures, not a full programme design.")}
+      <ol class="rp-priorities">${items}</ol>
+    </section>
+  `;
+}
+
+function placeTable(record) {
+  const cell = (value) => `<td class="is-number">${formatScore(value)}</td>`;
+  const rows = hotspotData.meta.sectors.map((sector) => {
+    const metrics = record.metrics?.[sector] || {};
+    return `<tr><th scope="row">${escapeHtml(sector)}</th>${cell(metrics.gender_hotspot_score)}<td>${riskChip(metrics.risk_level)}</td>${cell(metrics.vulnerability_score)}${cell(metrics.exposure)}${cell(metrics.sensitivity)}${cell(metrics.adaptive_capacity)}</tr>`;
+  }).join("");
+  return `
+    <section class="rp-section">
+      ${sectionHead("All figures", "The numbers behind this report", "All values are on a 0 to 100 scale.")}
+      <div class="rp-table-wrap">
+        <table class="rp-table">
+          <thead><tr><th scope="col">Sector</th><th scope="col" class="is-number">Hotspot score</th><th scope="col">Risk class</th><th scope="col" class="is-number">Vulnerability</th><th scope="col" class="is-number">Exposure</th><th scope="col" class="is-number">Sensitivity</th><th scope="col" class="is-number">Adaptive capacity</th></tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr><th scope="row">Composite</th><td class="is-number">${formatScore(record.composite_score)}</td><td>${riskChip(record.risk_level)}</td><td colspan="4" class="rp-muted">Average of the three sector hotspot scores</td></tr></tfoot>
+        </table>
+      </div>
+    </section>
+  `;
+}
+
+function readingGuide(statusText, isIllustrative) {
+  return `
+    <section class="rp-section">
+      ${sectionHead("Reading guide", "How to read these figures", "")}
+      <div class="rp-guide">
+        <article>
+          <h4>What the score means</h4>
+          <p>The hotspot score is the average of exposure, sensitivity, and the gap in adaptive capacity (100 minus capacity). A higher score means climate pressure and gender vulnerability combine more severely.</p>
+          <ul class="rp-classes">
+            ${[...RISK_ORDER].reverse().map((risk, index) => `<li>${riskChip(risk)}<span>${["75 and above", "60 to 74", "40 to 59", "20 to 39", "Below 20"][index]}</span></li>`).join("")}
+          </ul>
+        </article>
+        <article class="${isIllustrative ? "is-caution" : ""}">
+          <h4>${isIllustrative ? "Illustrative data" : "Data source"}</h4>
+          <p>${escapeHtml(statusText)}</p>
+          <p>Scores compare places within the study. They show where to look first and do not replace local assessment.</p>
+          <a class="text-link" href="/methodology">Read the full methodology</a>
+        </article>
+      </div>
+    </section>
+  `;
+}
+
+function publishedAnalysis(record) {
+  const reports = record.reports || [];
+  const published = reports.map((report) => `
+    <article class="report-narrative">
+      <div>
+        <span class="rp-eyebrow">${escapeHtml(report.sector || "All sectors")}</span>
+        <h3>${escapeHtml(report.title)}</h3>
+      </div>
+      ${textBlock("Overview", report.overview)}
+      ${textBlock("Key findings", report.findings)}
+      ${textBlock("Recommendations", report.recommendations)}
+      ${textBlock("Methodology and notes", report.methodology)}
+    </article>
+  `).join("");
+  return `
+    <section class="rp-section">
+      ${sectionHead("Analysis and documents", "Written analysis for this place", "Reports published by the AGNES team, AI-drafted narratives, and attached documents.")}
+      <div class="rp-analysis">
+        ${published}
+        ${aiNarrativeSections(record)}
+        ${documentSections(record)}
+      </div>
+    </section>
+  `;
+}
+
+function openReport(html) {
+  const existing = document.getElementById("fullReport");
+  const section = document.createElement("section");
+  section.id = "fullReport";
+  section.className = "full-report rp";
+  section.innerHTML = html;
   const host = document.getElementById("reportHost");
   const previousScroll = existing ? host.scrollTop : 0;
   host.replaceChildren(section);
@@ -1120,6 +1247,101 @@ function renderFullReport(record = selectedRecord) {
   document.body.classList.add("has-report-open");
   host.scrollTop = previousScroll;
   host.focus({ preventScroll: true });
+  return section;
+}
+
+function renderFullReport(record = selectedRecord) {
+  if (!record) return;
+  const previous = document.getElementById("fullReport");
+  const samePlace = previous?.dataset.place === recordKey(record);
+  const place = placeLabel(record.country);
+  const section = openReport(reportShell(
+    `${escapeHtml(record.country)} &middot; ${escapeHtml(place)} report${record.zone ? ` &middot; ${escapeHtml(record.zone)}` : ""}`,
+    escapeHtml(record.name),
+    placeHero(record)
+      + placeSectors(record)
+      + placePriorities(record)
+      + placeTable(record)
+      + publishedAnalysis(record)
+      + readingGuide(dataSourceSentence(record), record.data_status === "illustrative")
+  ));
+  section.dataset.place = recordKey(record);
+  if (!samePlace) document.getElementById("reportHost").scrollTop = 0;
+}
+
+// Country-level data table: every place in the country with its sector scores.
+function renderCountryReport(countryName = state.country) {
+  const country = countryByName(countryName);
+  if (!country) return;
+  const records = countryRecords(countryName);
+  const sectors = hotspotData.meta.sectors;
+  const value = (record, key) => key === "composite" ? record.composite_score
+    : key === "name" ? record.name
+    : key === "risk" ? riskRank(record.risk_level)
+    : record.metrics?.[key]?.gender_hotspot_score;
+  const { key, dir } = countryReportSort;
+  const sorted = [...records].sort((a, b) => {
+    const left = value(a, key);
+    const right = value(b, key);
+    if (key === "name") return dir * String(left).localeCompare(String(right));
+    return dir * ((Number(left) || 0) - (Number(right) || 0));
+  });
+  const admin = country.admin_label.toLowerCase();
+  const mean = average(records.map((item) => item.composite_score).filter((item) => item != null));
+  const priority = records.filter((item) => ["High", "Very High"].includes(item.risk_level)).length;
+  const sectorMeans = sectors.map((sector) => ({ sector, mean: sectorAverage(countryName, sector) })).filter((item) => item.mean != null);
+  const topSector = [...sectorMeans].sort((a, b) => b.mean - a.mean)[0];
+  const mix = [...RISK_ORDER].reverse().map((risk) => ({ risk, count: records.filter((item) => item.risk_level === risk).length })).filter((item) => item.count);
+  const sortHead = (sortKey, label, numeric = true) => `
+    <th scope="col" class="${numeric ? "is-number" : ""}" aria-sort="${key === sortKey ? (dir === 1 ? "ascending" : "descending") : "none"}">
+      <button type="button" data-report-sort="${sortKey}">${escapeHtml(label)}<span aria-hidden="true">${key === sortKey ? (dir === 1 ? "↑" : "↓") : ""}</span></button>
+    </th>`;
+  const rows = sorted.map((record, index) => `
+    <tr data-read-record="${escapeHtml(recordKey(record))}" tabindex="0">
+      <td class="is-number rp-muted">${index + 1}</td>
+      <th scope="row">${escapeHtml(record.name)}</th>
+      <td class="is-number"><b>${formatScore(record.composite_score)}</b></td>
+      <td>${riskChip(record.risk_level)}</td>
+      ${sectors.map((sector) => `<td class="is-number">${formatScore(record.metrics?.[sector]?.gender_hotspot_score)}</td>`).join("")}
+      <td>${escapeHtml(record.top_sector || "N/A")}</td>
+    </tr>`).join("");
+
+  const section = openReport(reportShell(
+    `${escapeHtml(countryName)} &middot; country data`,
+    `${escapeHtml(countryName)}: all ${escapeHtml(admin)}`,
+    `
+    <section class="rp-hero">
+      <div class="rp-hero-score">
+        <span>Average composite score</span>
+        <strong>${formatScore(mean)}<small>/ 100</small></strong>
+        ${scoreMeter(mean, "is-light")}
+        <div class="rp-hero-scale"><span>0</span><span>Low 20</span><span>Medium 40</span><span>High 60</span><span>Very high 75</span></div>
+      </div>
+      <div class="rp-hero-copy">
+        <p>${escapeHtml(`${priority} of ${records.length} ${admin} are classed High or Very High.`)}${topSector ? escapeHtml(` ${topSector.sector} carries the highest average pressure at ${formatScore(topSector.mean)}.`) : ""}</p>
+        <div class="rp-mix" role="img" aria-label="Risk class mix">${mix.map((item) => `<i style="flex:${item.count};background:${RISK_COLORS[item.risk]}"></i>`).join("")}</div>
+        <ul class="rp-mix-key">${mix.map((item) => `<li><i style="background:${RISK_COLORS[item.risk]}"></i>${escapeHtml(item.risk)} <b>${item.count}</b></li>`).join("")}</ul>
+      </div>
+      <dl class="rp-hero-facts">
+        <div><dt>${escapeHtml(country.admin_label)}</dt><dd>${records.length}</dd></div>
+        ${sectorMeans.map((item) => `<div><dt>${escapeHtml(item.sector)} average</dt><dd>${formatScore(item.mean)}</dd></div>`).join("")}
+      </dl>
+    </section>
+    <section class="rp-section">
+      ${sectionHead("Full dataset", `Every ${placeLabel(countryName).toLowerCase()} and its sector scores`, "Select a column heading to sort. Select a row to open that place's report.")}
+      <div class="rp-table-wrap">
+        <table class="rp-table is-clickable">
+          <thead><tr><th scope="col" class="is-number">#</th>${sortHead("name", placeLabel(countryName), false)}${sortHead("composite", "Composite")}${sortHead("risk", "Risk class", false)}${sectors.map((sector) => sortHead(sector, sector)).join("")}<th scope="col">Strongest pressure</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </section>
+    ${readingGuide(country.illustrative
+      ? `Figures for ${countryName} are illustrative placeholders, not survey results. They are replaced when the ${countryName} sector workbooks are uploaded.`
+      : "Figures come from the supplied water, energy, and agriculture sector workbooks.", Boolean(country.illustrative))}
+    `
+  ));
+  section.dataset.country = countryName;
 }
 
 async function generateAiNarrative(key, force = false) {
@@ -1434,6 +1656,7 @@ function renderRecordCards(records) {
   const showMoreRow = document.getElementById("showMoreRow");
   const sortTools = document.getElementById("sortSelect");
   sortTools.hidden = state.country === "__all__";
+  document.getElementById("countryReportButton").hidden = state.country === "__all__";
   if (state.country === "__all__") {
     showMoreRow.hidden = true;
     renderCountryRecordCards(records);
@@ -1742,6 +1965,7 @@ async function init() {
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !document.getElementById("reportOverlay").hidden) closeReport();
+    if (event.key === "Enter" && event.target.matches?.("tr[data-read-record]")) event.target.click();
   });
   const recordGrid = document.getElementById("recordGrid");
   recordGrid.addEventListener("mouseover", (event) => {
@@ -1793,6 +2017,12 @@ async function init() {
     if (readTarget) {
       const name = readTarget.getAttribute("data-read-record");
       map.closePopup();
+      const target = recordByKey(name);
+      if (target && state.country !== "__all__" && state.country !== target.country) {
+        state.country = target.country;
+        document.getElementById("countrySelect").value = state.country;
+        applyState();
+      }
       selectRecord(name, true);
       renderFullReport(recordByKey(name));
       return;
@@ -1800,6 +2030,29 @@ async function init() {
 
     if (event.target.closest("[data-close-report]")) {
       closeReport();
+      return;
+    }
+
+    if (event.target.closest("[data-print-report]")) {
+      window.print();
+      return;
+    }
+
+    if (event.target.closest("[data-country-report]")) {
+      countryReportSort = { key: "composite", dir: -1 };
+      renderCountryReport(state.country);
+      return;
+    }
+
+    const sortTarget = event.target.closest("[data-report-sort]");
+    if (sortTarget) {
+      const sortKey = sortTarget.getAttribute("data-report-sort");
+      countryReportSort = countryReportSort.key === sortKey
+        ? { key: sortKey, dir: -countryReportSort.dir }
+        : { key: sortKey, dir: sortKey === "name" ? 1 : -1 };
+      const scroll = document.getElementById("reportHost").scrollTop;
+      renderCountryReport(document.getElementById("fullReport")?.dataset.country || state.country);
+      document.getElementById("reportHost").scrollTop = scroll;
       return;
     }
 
