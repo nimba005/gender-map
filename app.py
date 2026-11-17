@@ -1126,7 +1126,7 @@ def data_files(filename):
 @app.route("/export/<kind>.<fmt>")
 def export_report(kind, fmt):
     """Download a place or country report as PDF (with chosen sections) or Excel."""
-    if kind not in ("place", "country") or fmt not in ("pdf", "xlsx"):
+    if kind not in ("place", "country", "all") or fmt not in ("pdf", "xlsx"):
         return jsonify({"error": "Unknown export"}), 404
     try:
         import exports
@@ -1134,35 +1134,49 @@ def export_report(kind, fmt):
         return jsonify({"error": "Exports need the reportlab and openpyxl packages on the server."}), 503
 
     payload = merged_hotspot_payload()
-    country = request.args.get("country", "")
-    country_meta = next((item for item in payload.get("countries", []) if item.get("country") == country), None)
-    if not country_meta:
-        return jsonify({"error": "Unknown country"}), 404
-    records = payload.get("records", {}).get(country, [])
     sectors = payload.get("meta", {}).get("sectors", SECTORS)
+    all_records = payload.get("records", {})
+    country = request.args.get("country", "")
+    record = None
 
-    if kind == "place":
-        place = request.args.get("place", "")
-        record = next((item for item in records if item.get("name") == place), None)
-        if not record:
-            return jsonify({"error": "Unknown place"}), 404
-        valid = [key for key, _ in exports.PLACE_SECTIONS]
-        label = place
+    if kind == "all":
+        countries_meta = payload.get("countries", [])
+        valid = [key for key, _ in exports.ALL_SECTIONS]
+        country, label = "all-countries", "overview"
     else:
-        record = None
-        valid = [key for key, _ in exports.COUNTRY_SECTIONS]
-        label = f"all {country_meta.get('admin_label', 'places')}"
+        country_meta = next((item for item in payload.get("countries", []) if item.get("country") == country), None)
+        if not country_meta:
+            return jsonify({"error": "Unknown country"}), 404
+        records = all_records.get(country, [])
+        if kind == "place":
+            place = request.args.get("place", "")
+            record = next((item for item in records if item.get("name") == place), None)
+            if not record:
+                return jsonify({"error": "Unknown place"}), 404
+            valid = [key for key, _ in exports.PLACE_SECTIONS]
+            label = place
+        else:
+            valid = [key for key, _ in exports.COUNTRY_SECTIONS]
+            label = f"all {country_meta.get('admin_label', 'places')}"
 
     requested = [key for key in request.args.get("sections", "").split(",") if key in valid]
     selected = requested or valid
     if fmt == "pdf":
-        body = (exports.place_pdf(record, records, country_meta, sectors, selected) if record
-                else exports.country_pdf(country_meta, records, sectors, selected))
         mimetype = "application/pdf"
+        if kind == "all":
+            body = exports.all_pdf(countries_meta, all_records, sectors, selected)
+        elif record:
+            body = exports.place_pdf(record, records, country_meta, sectors, selected)
+        else:
+            body = exports.country_pdf(country_meta, records, sectors, selected)
     else:
-        body = (exports.place_xlsx(record, records, country_meta, sectors) if record
-                else exports.country_xlsx(country_meta, records, sectors))
         mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        if kind == "all":
+            body = exports.all_xlsx(countries_meta, all_records, sectors)
+        elif record:
+            body = exports.place_xlsx(record, records, country_meta, sectors)
+        else:
+            body = exports.country_xlsx(country_meta, records, sectors)
 
     filename = secure_filename(f"gender-hotspot-{country}-{label}".lower().replace(" ", "-")) + f".{fmt}"
     disposition = "inline" if request.args.get("inline") == "1" and fmt == "pdf" else "attachment"

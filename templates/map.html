@@ -15,13 +15,24 @@
   <div class="ma-bar">
     <div class="ma-countries" id="countryCards" aria-label="Country"></div>
     <select id="countrySelect" hidden aria-hidden="true" tabindex="-1"></select>
+    <div class="rp-export ma-bar-export" data-export-scope="view">
+      <button class="button button-primary" type="button" data-export-toggle aria-haspopup="true" aria-expanded="false">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>
+        <span>Export</span>
+        <svg class="rp-export-caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      </button>
+      <div class="rp-export-menu" role="menu" hidden></div>
+    </div>
+
 
     <div class="ma-filters">
-      <label class="ma-field">
+      <label class="ma-field" title="Sector">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.200 6 10.500a6 6 0 0 1-12 0C6 9.200 12 3 12 3Z"/></svg>
         <span>Sector</span>
         <select id="sectorSelect"></select>
       </label>
-      <label class="ma-field">
+      <label class="ma-field" title="Metric shown on the map">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5M4 19h16M8 15v-4M12 15V8M16 15v-6"/></svg>
         <span>Metric</span>
         <select id="metricSelect">
           <option value="gender_hotspot_score">Gender hotspot score</option>
@@ -32,7 +43,8 @@
           <option value="risk_level">Risk level</option>
         </select>
       </label>
-      <label class="ma-field">
+      <label class="ma-field" title="Risk level">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4 3 19h18L12 4Z"/><path d="M12 10v4M12 17h.01"/></svg>
         <span>Risk</span>
         <select id="riskSelect">
           <option value="__all__">All risk levels</option>
@@ -112,14 +124,6 @@
             <option value="name_asc">Name: A to Z</option>
             <option value="risk_desc">Risk: high to low</option>
           </select>
-          <button class="tool-button" id="copyLinkButton" type="button" title="Copy a link to this exact view">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
-            <span>Copy link</span>
-          </button>
-          <button class="tool-button" id="downloadCsvButton" type="button" title="Download the visible places as a spreadsheet (CSV)">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>
-            <span>CSV</span>
-          </button>
         </div>
         <button class="ma-data-button" id="countryReportButton" type="button" data-country-report hidden>
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/></svg>

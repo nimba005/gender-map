@@ -26,104 +26,159 @@
 
 /* ---------- Filter bar ---------- */
 .ma-bar {
+  position: relative;
+  z-index: 1200;
   display: flex;
   align-items: center;
-  gap: 12px 20px;
+  gap: 10px 18px;
   flex-wrap: wrap;
   padding: 10px clamp(12px, 2vw, 24px);
   border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  background: linear-gradient(180deg, #ffffff 0%, #f6f9f6 100%);
+  box-shadow: 0 6px 18px rgba(8, 38, 28, 0.07);
 }
 
 .ma-countries {
   display: flex;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 12px;
-  background: var(--surface-soft);
+  flex: 1 1 0;
+  gap: 6px;
+  min-width: 0;
+  padding: 2px 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ma-countries::-webkit-scrollbar {
+  display: none;
 }
 
 .ma-country-tab {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  min-height: 36px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 9px;
-  color: var(--muted);
-  background: transparent;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 8px 0 12px;
+  border: 1px solid var(--border-strong);
+  border-radius: 99px;
+  color: var(--ink);
+  background: var(--surface);
   font: inherit;
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
+}
+
+.ma-country-tab > i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.9);
+}
+
+.ma-country-tab > svg {
+  color: var(--brand);
 }
 
 .ma-country-tab small {
+  min-width: 26px;
+  padding: 2px 7px;
+  border-radius: 99px;
   color: var(--muted);
-  font-size: 12px;
-  font-weight: 600;
+  background: var(--surface-soft);
+  font-size: 11.5px;
+  font-weight: 700;
+  text-align: center;
   font-variant-numeric: tabular-nums;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .ma-country-tab:hover {
-  color: var(--ink);
-  background: rgba(255, 255, 255, 0.7);
+  border-color: var(--brand);
+  color: var(--brand-2);
+  box-shadow: 0 4px 12px rgba(8, 38, 28, 0.1);
 }
 
 .ma-country-tab:active {
-  transform: translateY(1px);
+  transform: translateY(1px) scale(0.98);
 }
 
 .ma-country-tab.is-active {
-  color: var(--brand-2);
-  background: var(--surface);
-  box-shadow: 0 1px 2px rgba(8, 38, 28, 0.1), 0 0 0 1px rgba(20, 105, 75, 0.2);
+  border-color: var(--brand-2);
+  color: #fff;
+  background: linear-gradient(135deg, #14694b, #0c4a34);
+  box-shadow: 0 6px 16px rgba(12, 74, 52, 0.3);
+}
+
+.ma-country-tab.is-active > svg {
+  color: #f2c14e;
+}
+
+.ma-country-tab.is-active small {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .ma-filters {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
-  margin-left: auto;
+  width: 100%;
 }
 
-.ma-field {
+.ma-field,
+.ma-search {
   display: inline-flex;
+  flex: 1 1 200px;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  min-width: 0;
+  max-width: 300px;
   min-height: 40px;
   padding: 0 4px 0 12px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid transparent;
   border-radius: 10px;
-  background: var(--surface);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  color: var(--brand);
+  background: #edf3ee;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
-.ma-field:hover {
-  border-color: var(--brand);
+.ma-search {
+  flex: 2 1 240px;
+  max-width: 460px;
+  padding: 0 12px;
+}
+
+.ma-field > svg,
+.ma-search > svg {
+  flex: none;
+}
+
+.ma-field:hover,
+.ma-search:hover {
+  border-color: rgba(20, 105, 75, 0.45);
+  background: #fff;
 }
 
 .ma-field:focus-within,
 .ma-search:focus-within {
   border-color: var(--brand);
+  background: #fff;
   box-shadow: 0 0 0 3px rgba(20, 105, 75, 0.14);
 }
 
 .ma-field > span {
-  color: var(--muted);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
 }
 
 .ma-field select {
   min-height: 36px;
-  padding: 0 26px 0 4px;
+  padding: 0 26px 0 0;
   border: 0;
   border-radius: 8px;
   color: var(--ink);
@@ -134,23 +189,15 @@
   box-shadow: none;
   outline: none;
   cursor: pointer;
-  width: auto;
-}
-
-.ma-search {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 0 12px;
-  border: 1px solid var(--border-strong);
-  border-radius: 10px;
-  color: var(--muted);
-  background: var(--surface);
+  flex: 1;
+  width: 100%;
+  min-width: 0;
 }
 
 .ma-search input {
-  width: 124px;
+  flex: 1;
+  width: auto;
+  min-width: 0;
   min-height: 36px;
   padding: 0;
   border: 0;
@@ -164,25 +211,35 @@
 
 .ma-icon-button {
   display: inline-grid;
+  flex: none;
   place-items: center;
   width: 40px;
   height: 40px;
-  border: 1px solid var(--border-strong);
+  border: 1px solid transparent;
   border-radius: 10px;
   color: var(--muted);
-  background: var(--surface);
+  background: #edf3ee;
   cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease, transform 0.08s ease;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease, transform 0.2s ease;
 }
 
 .ma-icon-button:hover {
-  border-color: var(--brand);
+  border-color: rgba(20, 105, 75, 0.45);
   color: var(--brand-2);
-  background: var(--surface-soft);
+  background: #fff;
 }
 
 .ma-icon-button:active {
-  transform: rotate(-40deg);
+  transform: rotate(-60deg);
+}
+
+.ma-bar-export {
+  flex: none;
+}
+
+.ma-bar-export > .button {
+  min-height: 40px;
+  padding: 0 14px;
 }
 
 /* ---------- Map stage ---------- */
@@ -1186,25 +1243,21 @@ body.has-report-open {
 }
 
 /* ---------- Narrower screens ---------- */
-@media (max-width: 1560px) {
+@media (max-width: 700px) {
   .ma-country-tab small {
     display: none;
   }
-}
 
-@media (max-width: 1400px) {
-  .ma-field {
-    padding-left: 6px;
+  .ma-country-tab {
+    padding: 0 13px 0 11px;
   }
 
-  .ma-field > span {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
+  .ma-field,
+  .ma-search {
+    max-width: none;
   }
 }
+
 
 @media (max-width: 1180px) {
   .ma-panel,
@@ -1223,17 +1276,6 @@ body.has-report-open {
 
   .ma-bar {
     padding: 10px 12px;
-  }
-
-  .ma-countries {
-    width: 100%;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .ma-filters {
-    width: 100%;
-    margin-left: 0;
   }
 
   .ma-field {
@@ -2393,46 +2435,6 @@ body.has-report-open {
 }
 
 /* ---------- Filter bar and panel at in-between widths ---------- */
-@media (max-width: 1240px) {
-  .ma-filters {
-    width: 100%;
-    margin-left: 0;
-    flex-wrap: nowrap;
-  }
-
-  .ma-field {
-    flex: 1 1 0;
-    min-width: 0;
-  }
-
-  .ma-field select {
-    flex: 1;
-    width: 100%;
-    min-width: 0;
-  }
-
-  .ma-search {
-    flex: 1.2 1 0;
-    min-width: 0;
-  }
-
-  .ma-search input {
-    flex: 1;
-    width: auto;
-    min-width: 0;
-  }
-
-  .ma-icon-button {
-    flex: none;
-  }
-
-  .ma-countries {
-    max-width: 100%;
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-}
-
 @media (max-width: 1000px) {
   .ma-panel,
   .ma-tabs,
@@ -2465,9 +2467,11 @@ body.has-report-open {
     grid-column: 2 / -1;
   }
 
-  .ma-countries {
-    width: 100%;
+  .ma-field,
+  .ma-search {
+    max-width: none;
   }
+
 }
 
 @media (max-width: 760px) {
@@ -2507,5 +2511,58 @@ body.has-report-open {
 
   .ma-country-tab {
     padding: 0 11px;
+  }
+}
+
+/* ---------- Export control: scope line, bar placement ---------- */
+.rp-export-scope {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 2px 4px 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--surface-soft);
+  font-size: 12.5px;
+}
+
+.rp-export-scope span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.rp-export-scope strong {
+  overflow: hidden;
+  color: var(--brand-deep);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rp-export > .button > span {
+  min-width: 46px;
+  text-align: left;
+}
+
+.rp-chooser-card > p strong {
+  color: var(--ink);
+}
+
+@media (max-width: 520px) {
+  .ma-bar-export > .button > span {
+    display: none;
+  }
+
+  .ma-bar-export > .button {
+    padding: 0 10px;
+    gap: 4px;
+  }
+
+  .ma-bar-export .rp-export-menu {
+    top: auto;
+    margin-top: 8px;
   }
 }

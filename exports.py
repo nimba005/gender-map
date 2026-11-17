@@ -83,6 +83,14 @@ PLACE_SECTIONS = [
     ("analysis", "Written analysis and documents"),
     ("guide", "Reading guide and data source"),
 ]
+ALL_SECTIONS = [
+    ("summary", "Regional summary"),
+    ("countries", "Country comparison"),
+    ("sectors", "Sector averages by country"),
+    ("hotspots", "Highest hotspots in each country"),
+    ("table", "Full table of all places"),
+    ("guide", "Reading guide and data source"),
+]
 COUNTRY_SECTIONS = [
     ("summary", "Country summary"),
     ("sectors", "Sector averages and risk mix"),
@@ -452,7 +460,8 @@ def place_pdf(record, records, country_meta, sectors, selected=None):
         story += section_head("Analysis and documents", "Written analysis for this place") + blocks
 
     if "guide" in wanted:
-        story += section_head("Reading guide", "How to read these figures")
+        story.append(CondPageBreak(75 * mm))
+        story += section_head("Reading guide", "How to read these figures")[1:]
         story.append(reading_guide(width, data_source_sentence(country, illustrative, record.get("data_status")), illustrative))
 
     return build_document(story, f"{record['name']} gender hotspot report", f"{record['name']}, {country}")
@@ -512,7 +521,8 @@ def country_pdf(country_meta, records, sectors, selected=None):
         story.append(data_table(rows, [9 * mm, width - fixed, 22 * mm, 27 * mm] + [22 * mm] * len(sectors) + [34 * mm]))
 
     if "guide" in wanted:
-        story += section_head("Reading guide", "How to read these figures")
+        story.append(CondPageBreak(75 * mm))
+        story += section_head("Reading guide", "How to read these figures")[1:]
         story.append(reading_guide(width, data_source_sentence(country, illustrative), illustrative))
 
     return build_document(story, f"{country} gender hotspot data", f"{country}, all {admin.lower()}")
@@ -598,6 +608,150 @@ def country_xlsx(country_meta, records, sectors):
         row += [((record.get("metrics") or {}).get(sector) or {}).get(field) for sector in sectors for field, _ in fields]
         rows.append(row)
     sheet = _sheet(workbook, "All places", header, rows, [7, 26, 16, 14, 20, 18] + [15] * (len(sectors) * len(fields)))
+    sheet.row_dimensions[1].height = 32
+    sheet.auto_filter.ref = sheet.dimensions
+    return _workbook_bytes(workbook)
+
+
+# ---------------------------------------------------------------- all countries
+def _country_stats(meta, records, sectors):
+    means = [(sector, sector_average(records, sector)) for sector in sectors]
+    means = [(sector, value) for sector, value in means if value is not None]
+    ranked = sorted((r for r in records if r.get("composite_score") is not None), key=lambda r: -r["composite_score"])
+    return {
+        "meta": meta,
+        "records": records,
+        "ranked": ranked,
+        "average": mean(r.get("composite_score") for r in records),
+        "priority": sum(1 for r in records if r.get("risk_level") in ("High", "Very High")),
+        "sector_means": dict(means),
+        "top_sector": max(means, key=lambda item: item[1])[0] if means else None,
+        "mix": [(risk, count) for risk, count in ((risk, sum(1 for r in records if r.get("risk_level") == risk)) for risk in RISK_ORDER) if count],
+        "source": "Illustrative" if meta.get("illustrative") else "Sector workbooks",
+    }
+
+
+def all_pdf(countries_meta, records_by_country, sectors, selected=None):
+    wanted = set(selected or [key for key, _ in ALL_SECTIONS])
+    width = A4[0] - 32 * mm
+    stats = [_country_stats(meta, records_by_country.get(meta["country"], []), sectors) for meta in countries_meta]
+    everything = [record for item in stats for record in item["records"]]
+    priority = sum(item["priority"] for item in stats)
+    overall_means = [(sector, sector_average(everything, sector)) for sector in sectors]
+    overall_means = [(sector, value) for sector, value in overall_means if value is not None]
+    top = max(overall_means, key=lambda item: item[1]) if overall_means else None
+    illustrative = [item["meta"]["country"] for item in stats if item["meta"].get("illustrative")]
+    names = ", ".join(item["meta"]["country"] for item in stats)
+
+    story = [
+        Paragraph(esc("Regional overview \u00b7 all study countries".upper()), STYLES["eyebrow"]),
+        Paragraph("Gender hotspots across the study countries", STYLES["title"]),
+        Paragraph(esc(names), STYLES["muted"]),
+        Spacer(1, 4 * mm),
+    ]
+
+    if "summary" in wanted:
+        text = f"{priority} of {len(everything)} places across {len(stats)} countries are classed High or Very High."
+        if top:
+            text += f" {top[0]} carries the highest average pressure at {fmt(top[1])}."
+        story.append(hero(
+            width, "Average composite score, all places", mean(r.get("composite_score") for r in everything),
+            [Paragraph(esc(text), STYLES["white"])],
+            [("Countries", str(len(stats))), ("Places", str(len(everything))), ("High or very high", str(priority)), ("Top sector", top[0] if top else "N/A")],
+        ))
+
+    if "countries" in wanted:
+        story += section_head("Country comparison", "How the countries compare", "Average composite score, share of places at High or Very High risk, and the sector under most pressure.")
+        rows = [["COUNTRY", "PLACES", "AVERAGE", "RISK CLASS MIX", "HIGH / VERY HIGH", "STRONGEST SECTOR", "DATA SOURCE"]]
+        for item in stats:
+            rows.append([
+                Paragraph(f"<b>{esc(item['meta']['country'])}</b>", STYLES["cell"]), str(len(item["records"])), fmt(item["average"]),
+                RiskMix(item["mix"], 30 * mm, height=6) if item["mix"] else "", str(item["priority"]), item["top_sector"] or "N/A", item["source"],
+            ])
+        story.append(data_table(rows, [24 * mm, 14 * mm, 17 * mm, 35 * mm, 26 * mm, 27 * mm, width - 143 * mm]))
+        story += [Spacer(1, 2 * mm), Paragraph(" &nbsp;&nbsp; ".join(f'<font color="{RISK_COLORS[risk].hexval()}">&#9679;</font> {risk}' for risk in RISK_ORDER), STYLES["small"])]
+
+    if "sectors" in wanted:
+        story += section_head("Sectors", "Average hotspot score by sector and country", "All values are on a 0 to 100 scale.")
+        rows = [["COUNTRY"] + [sector.upper() for sector in sectors] + ["COMPOSITE"]]
+        for item in stats:
+            rows.append([Paragraph(f"<b>{esc(item['meta']['country'])}</b>", STYLES["cell"])] + [fmt(item["sector_means"].get(sector)) for sector in sectors] + [fmt(item["average"])])
+        rows.append(["All places"] + [fmt(dict(overall_means).get(sector)) for sector in sectors] + [fmt(mean(r.get("composite_score") for r in everything))])
+        column = (width - 44 * mm) / (len(sectors) + 1)
+        story.append(data_table(rows, [44 * mm] + [column] * (len(sectors) + 1), footer=True))
+
+    if "hotspots" in wanted:
+        story += section_head("Priority places", "Highest hotspots in each country", "The five places with the highest composite score in each country.")
+        rows = [["COUNTRY", "#", "PLACE", "COMPOSITE", "RISK CLASS", "STRONGEST PRESSURE"]]
+        for item in stats:
+            for index, record in enumerate(item["ranked"][:5], start=1):
+                rows.append([
+                    Paragraph(f"<b>{esc(item['meta']['country'])}</b>", STYLES["cell"]) if index == 1 else "", str(index),
+                    Paragraph(f"<b>{esc(record['name'])}</b>", STYLES["cell"]), fmt(record.get("composite_score")), risk_text(record.get("risk_level")), record.get("top_sector") or "N/A",
+                ])
+        story.append(data_table(rows, [28 * mm, 9 * mm, width - 131 * mm, 24 * mm, 30 * mm, 40 * mm]))
+
+    if "table" in wanted:
+        story += section_head("Full dataset", "Every place and its sector scores", "Grouped by country and ordered from the highest composite score.")
+        rows = [["COUNTRY", "PLACE", "COMPOSITE", "RISK CLASS"] + [s.upper() for s in sectors] + ["STRONGEST"]]
+        for item in stats:
+            for record in item["ranked"]:
+                rows.append([item["meta"]["country"], Paragraph(f"<b>{esc(record['name'])}</b>", STYLES["cell"]), fmt(record.get("composite_score")), risk_text(record.get("risk_level"))]
+                            + [fmt(((record.get("metrics") or {}).get(sector) or {}).get("gender_hotspot_score")) for sector in sectors]
+                            + [record.get("top_sector") or "N/A"])
+        fixed = 23 * mm + 21 * mm + 27 * mm + 21 * mm * len(sectors) + 26 * mm
+        story.append(data_table(rows, [23 * mm, width - fixed, 21 * mm, 27 * mm] + [21 * mm] * len(sectors) + [26 * mm]))
+
+    if "guide" in wanted:
+        story.append(CondPageBreak(75 * mm))
+        story += section_head("Reading guide", "How to read these figures")[1:]
+        if illustrative:
+            source = (f"Figures for {', '.join(illustrative)} are illustrative placeholders, not survey results. "
+                      "They are replaced as each country's sector workbooks are uploaded. Other countries use the supplied sector workbooks.")
+        else:
+            source = "Figures come from the supplied water, energy, and agriculture sector workbooks."
+        story.append(reading_guide(width, source, bool(illustrative)))
+
+    return build_document(story, "Gender hotspots across the study countries", f"All study countries ({len(everything)} places)")
+
+
+def all_xlsx(countries_meta, records_by_country, sectors):
+    workbook = Workbook()
+    stats = [_country_stats(meta, records_by_country.get(meta["country"], []), sectors) for meta in countries_meta]
+    everything = [record for item in stats for record in item["records"]]
+    summary = [
+        ["Countries", ", ".join(item["meta"]["country"] for item in stats)], ["Places", len(everything)],
+        ["Average composite score (0-100)", round(mean(r.get("composite_score") for r in everything) or 0, 1)],
+        ["High or Very High", sum(item["priority"] for item in stats)],
+    ]
+    summary += [[f"{sector} average hotspot score", round(sector_average(everything, sector) or 0, 1)] for sector in sectors]
+    illustrative = [item["meta"]["country"] for item in stats if item["meta"].get("illustrative")]
+    if illustrative:
+        summary.append(["Note", f"Figures for {', '.join(illustrative)} are illustrative placeholders, not survey results."])
+    summary.append(["Generated", datetime.now().strftime("%Y-%m-%d %H:%M")])
+    _sheet(workbook, "Summary", ["Item", "Value"], summary, [38, 80])
+
+    header = ["Country", "Places", "Average composite score", "High or Very High"] + [f"{risk} places" for risk in RISK_ORDER] + [f"{sector} average" for sector in sectors] + ["Strongest sector", "Highest hotspot", "Data source"]
+    rows = []
+    for item in stats:
+        counts = dict(item["mix"])
+        rows.append([item["meta"]["country"], len(item["records"]), round(item["average"] or 0, 1), item["priority"]]
+                    + [counts.get(risk, 0) for risk in RISK_ORDER]
+                    + [round(item["sector_means"].get(sector) or 0, 1) for sector in sectors]
+                    + [item["top_sector"], item["ranked"][0]["name"] if item["ranked"] else "", item["source"]])
+    sheet = _sheet(workbook, "Countries", header, rows, [16, 10, 16, 14] + [12] * len(RISK_ORDER) + [14] * len(sectors) + [18, 20, 18])
+    sheet.row_dimensions[1].height = 32
+
+    fields = [("gender_hotspot_score", "hotspot score"), ("risk_level", "risk class"), ("vulnerability_score", "vulnerability"), ("exposure", "exposure"), ("sensitivity", "sensitivity"), ("adaptive_capacity", "adaptive capacity")]
+    header = ["Country", "Place", "Rank in country", "Composite score", "Risk class", "Strongest pressure", "Data source"]
+    header += [f"{sector} {label}" for sector in sectors for _, label in fields]
+    rows = []
+    for item in stats:
+        for index, record in enumerate(item["ranked"], start=1):
+            row = [item["meta"]["country"], record["name"], index, record.get("composite_score"), record.get("risk_level"), record.get("top_sector"), data_status_label(record)]
+            row += [((record.get("metrics") or {}).get(sector) or {}).get(field) for sector in sectors for field, _ in fields]
+            rows.append(row)
+    sheet = _sheet(workbook, "All places", header, rows, [14, 26, 10, 16, 14, 20, 18] + [15] * (len(sectors) * len(fields)))
     sheet.row_dimensions[1].height = 32
     sheet.auto_filter.ref = sheet.dimensions
     return _workbook_bytes(workbook)
