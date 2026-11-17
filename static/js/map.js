@@ -1598,7 +1598,14 @@ function formatScoreOrRisk(record) {
 
 let lastFitKey = null;
 // Keeps fitted areas clear of the summary strip and the legend.
-const FIT_PADDING = { paddingTopLeft: [28, 84], paddingBottomRight: [28, 44] };
+function fitPadding() {
+  const summary = document.getElementById("summaryGrid");
+  const overlaid = summary && window.getComputedStyle(summary).position === "absolute";
+  const size = map.getSize();
+  const top = overlaid ? Math.min(summary.offsetHeight + 28, size.y / 3) : 16;
+  const side = size.x < 520 ? 14 : 28;
+  return { paddingTopLeft: [side, top], paddingBottomRight: [side, overlaid ? 44 : 30] };
+}
 
 function fitMap(force = false) {
   // Only move the map when the country changes, so filtering and selecting places does not reset the view.
@@ -1609,7 +1616,7 @@ function fitMap(force = false) {
     const group = L.featureGroup();
     hotspotData.countries.forEach((country) => group.addLayer(L.marker(country.center)));
     Object.values(boundaries).forEach((geojson) => group.addLayer(L.geoJSON(geojson)));
-    map.fitBounds(group.getBounds(), FIT_PADDING);
+    map.fitBounds(group.getBounds(), fitPadding());
     map.panInsideBounds(AFRICA_BOUNDS, { animate: false });
     return;
   }
@@ -1618,7 +1625,7 @@ function fitMap(force = false) {
   if (!country) return;
   const countryFeatures = boundaries[state.country]?.features || [];
   if (countryFeatures.length) {
-    map.fitBounds(L.geoJSON({ type: "FeatureCollection", features: countryFeatures }).getBounds(), FIT_PADDING);
+    map.fitBounds(L.geoJSON({ type: "FeatureCollection", features: countryFeatures }).getBounds(), fitPadding());
     map.panInsideBounds(AFRICA_BOUNDS, { animate: false });
     return;
   }
@@ -1626,23 +1633,46 @@ function fitMap(force = false) {
   map.panInsideBounds(AFRICA_BOUNDS, { animate: false });
 }
 
+function riskClassForScore(score) {
+  if (score == null || !Number.isFinite(Number(score))) return "No data";
+  return score >= 75 ? "Very High" : score >= 60 ? "High" : score >= 40 ? "Medium" : score >= 20 ? "Low" : "Very Low";
+}
+
+function riskDot(risk) {
+  return `<i style="background:${RISK_COLORS[risk] || RISK_COLORS["No data"]}"></i>`;
+}
+
 function renderSummary(records) {
-  const scores = records.map((record) => Number(metricForRecord(record))).filter(Number.isFinite);
+  const scores = records.map((record) => Number(displayScore(record))).filter(Number.isFinite);
   const avg = scores.length ? scores.reduce((sum, value) => sum + value, 0) / scores.length : null;
   const highest = records.length ? records.reduce((best, record) => {
-    return (Number(metricForRecord(record)) || 0) > (Number(metricForRecord(best)) || 0) ? record : best;
+    return (Number(displayScore(record)) || 0) > (Number(displayScore(best)) || 0) ? record : best;
   }, records[0]) : null;
 
   const sectorScores = hotspotData.meta.sectors.map((sector) => {
     const values = records.map((record) => record.metrics?.[sector]?.gender_hotspot_score).filter((value) => value != null);
     return { sector, avg: values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null };
   }).filter((item) => item.avg != null);
-  const top = sectorScores.length ? sectorScores.sort((a, b) => b.avg - a.avg)[0].sector : null;
+  const top = sectorScores.length ? sectorScores.sort((a, b) => b.avg - a.avg)[0] : null;
 
+  const usesHotspotScale = state.metric === "gender_hotspot_score" || state.metric === "risk_level";
+  const total = getRecords().length;
+  document.getElementById("summaryContext").textContent = state.country === "__all__" ? "All countries" : state.country;
+  document.getElementById("summaryMetric").textContent = `${selectedSectorLabel()} · ${usesHotspotScale ? "Gender hotspot score" : metricLabel(state.metric)}`;
   document.getElementById("visibleCount").textContent = records.length;
+  document.getElementById("visibleNote").textContent = records.length === total ? "in view" : `of ${total} after filters`;
   document.getElementById("averageScore").textContent = formatScore(avg);
+  const averageRisk = riskClassForScore(avg);
+  document.getElementById("averageRisk").innerHTML = avg == null ? "" : usesHotspotScale ? `${riskDot(averageRisk)}${escapeHtml(averageRisk)} risk` : "out of 100";
   document.getElementById("highestHotspot").textContent = highest?.name || "N/A";
-  document.getElementById("topSector").textContent = top || "N/A";
+  document.getElementById("highestNote").innerHTML = highest
+    ? `${riskDot(riskForRecord(highest))}${formatScore(displayScore(highest))}${state.country === "__all__" ? ` · ${escapeHtml(highest.country)}` : ""}`
+    : "";
+  const highestButton = document.getElementById("highestButton");
+  highestButton.disabled = !highest;
+  highestButton.dataset.overviewRecord = highest ? recordKey(highest) : "";
+  document.getElementById("topSector").textContent = top?.sector || "N/A";
+  document.getElementById("topSectorNote").textContent = top ? `average ${formatScore(top.avg)}` : "";
 }
 
 function renderSectorChart(records) {
@@ -2124,6 +2154,14 @@ async function init() {
       if (selectedRecord) clearSelectedRecord();
       setDetailMode(false);
     });
+  });
+  let resizeTimer = null;
+  window.addEventListener("resize", () => {
+    window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(() => {
+      map.invalidateSize();
+      if (!selectedRecord) fitMap(true);
+    }, 220);
   });
   document.getElementById("panelToggle").addEventListener("click", () => {
     setPanelCollapsed(!document.getElementById("mapApp").classList.contains("is-collapsed"));
