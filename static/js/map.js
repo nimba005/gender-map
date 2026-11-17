@@ -944,10 +944,12 @@ function setPanelCollapsed(collapsed) {
 }
 
 function closeReport() {
+  closeSectionChooser();
   document.getElementById("fullReport")?.remove();
   const overlay = document.getElementById("reportOverlay");
   if (overlay) overlay.hidden = true;
   document.body.classList.remove("has-report-open");
+  syncUrl();
 }
 
 // Zooms the map to one place (used when a place is picked from the list or a link).
@@ -1028,7 +1030,40 @@ function dataStatusLabel(record) {
   return "Sector workbooks";
 }
 
-function reportShell(kicker, title, body) {
+// Keys match PLACE_SECTIONS and COUNTRY_SECTIONS in exports.py.
+const EXPORT_PARTS = {
+  place: [
+    ["summary", "Headline score and summary"],
+    ["sectors", "Sector breakdown and indicators"],
+    ["priorities", "Suggested priorities"],
+    ["figures", "Table of all figures"],
+    ["analysis", "Written analysis and documents"],
+    ["guide", "Reading guide and data source"]
+  ],
+  country: [
+    ["summary", "Country summary"],
+    ["sectors", "Sector averages and risk mix"],
+    ["table", "Full table of places"],
+    ["guide", "Reading guide and data source"]
+  ]
+};
+
+const EXPORT_ICONS = {
+  pdf: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>',
+  view: '<path d="M2 12s3.600-7 10-7 10 7 10 7-3.600 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
+  share: '<path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/>',
+  xlsx: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/>'
+};
+
+function exportMenuItem(action, title, note) {
+  return `
+    <button type="button" role="menuitem" data-export="${action}">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.800" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${EXPORT_ICONS[action]}</svg>
+      <span><strong>${title}</strong><small>${note}</small></span>
+    </button>`;
+}
+
+function reportShell(kicker, title, body, kind = "place") {
   return `
     <div class="full-report-head">
       <div>
@@ -1036,12 +1071,135 @@ function reportShell(kicker, title, body) {
         <h2>${title}</h2>
       </div>
       <div class="rp-actions">
-        <button class="button button-secondary" type="button" data-print-report>Print or save PDF</button>
-        <button class="button button-primary" type="button" data-close-report>Close</button>
+        <div class="rp-export">
+          <button class="button button-primary" type="button" data-export-toggle aria-haspopup="true" aria-expanded="false">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>
+            Export
+            <svg class="rp-export-caret" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+          </button>
+          <div class="rp-export-menu" role="menu" hidden>
+            ${exportMenuItem("pdf", "PDF report", "Print-ready A4 report. Choose which sections to include.")}
+            ${exportMenuItem("view", "View PDF", "Open the full PDF here to read or print.")}
+            ${exportMenuItem("share", "Share link", "Copy a link that opens this report.")}
+            ${exportMenuItem("xlsx", "Excel workbook", kind === "country" ? "Summary and every place with all sector figures." : "Summary, sector figures, indicators, and priorities.")}
+          </div>
+        </div>
+        <button class="button button-secondary" type="button" data-close-report>Close</button>
       </div>
     </div>
     ${body}
   `;
+}
+
+// What the open report is about: { kind, country, place }.
+function reportContext() {
+  const report = document.getElementById("fullReport");
+  if (!report) return null;
+  if (report.dataset.place) {
+    const record = recordByKey(report.dataset.place);
+    return record ? { kind: "place", country: record.country, place: record.name } : null;
+  }
+  return report.dataset.country ? { kind: "country", country: report.dataset.country } : null;
+}
+
+function exportUrl(format, sections, inline = false) {
+  const context = reportContext();
+  if (!context) return null;
+  const params = new URLSearchParams({ country: context.country });
+  if (context.place) params.set("place", context.place);
+  if (sections && sections.length) params.set("sections", sections.join(","));
+  if (inline) params.set("inline", "1");
+  return `/export/${context.kind}.${format}?${params.toString()}`;
+}
+
+function startDownload(url) {
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+}
+
+function setExportMenu(open) {
+  const menu = document.querySelector(".rp-export-menu");
+  if (!menu) return;
+  menu.hidden = !open;
+  document.querySelector("[data-export-toggle]")?.setAttribute("aria-expanded", String(open));
+}
+
+function closeSectionChooser() {
+  document.getElementById("sectionChooser")?.remove();
+}
+
+function updateChooserCount() {
+  const chooser = document.getElementById("sectionChooser");
+  if (!chooser) return;
+  const boxes = [...chooser.querySelectorAll("input[type=checkbox]")];
+  const chosen = boxes.filter((box) => box.checked).length;
+  chooser.querySelector("[data-chooser-count]").textContent = `${chosen} of ${boxes.length} selected`;
+  chooser.querySelector("[data-chooser-download]").disabled = chosen === 0;
+}
+
+function openSectionChooser() {
+  const context = reportContext();
+  if (!context) return;
+  closeSectionChooser();
+  const parts = EXPORT_PARTS[context.kind];
+  const chooser = document.createElement("div");
+  chooser.id = "sectionChooser";
+  chooser.className = "rp-chooser";
+  chooser.innerHTML = `
+    <div class="rp-chooser-backdrop" data-chooser-cancel></div>
+    <div class="rp-chooser-card" role="dialog" aria-modal="true" aria-labelledby="chooserTitle">
+      <h3 id="chooserTitle">Choose what to include</h3>
+      <p>This PDF has ${parts.length} parts. Untick the ones you do not need.</p>
+      <div class="rp-chooser-tools">
+        <button type="button" data-chooser-all>Select all</button>
+        <button type="button" data-chooser-clear>Clear</button>
+        <span data-chooser-count></span>
+      </div>
+      <div class="rp-chooser-list">
+        ${parts.map(([key, label]) => `<label><input type="checkbox" value="${key}" checked><span>${escapeHtml(label)}</span></label>`).join("")}
+      </div>
+      <div class="rp-chooser-foot">
+        <button class="button button-secondary" type="button" data-chooser-cancel>Cancel</button>
+        <button class="button button-primary" type="button" data-chooser-download>Download selected</button>
+      </div>
+    </div>
+  `;
+  document.getElementById("reportOverlay").appendChild(chooser);
+  chooser.addEventListener("change", updateChooserCount);
+  updateChooserCount();
+  chooser.querySelector("input")?.focus();
+}
+
+async function handleExportAction(action, button) {
+  setExportMenu(false);
+  const context = reportContext();
+  if (!context) return;
+  if (action === "pdf") {
+    openSectionChooser();
+  } else if (action === "view") {
+    window.open(exportUrl("pdf", null, true), "_blank", "noopener");
+  } else if (action === "xlsx") {
+    startDownload(exportUrl("xlsx"));
+  } else if (action === "share") {
+    const params = new URLSearchParams({ country: context.country });
+    if (context.place) params.set("place", context.place); else params.set("report", "country");
+    const url = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
+    const toggle = document.querySelector("[data-export-toggle]");
+    try {
+      await navigator.clipboard.writeText(url);
+      if (toggle) {
+        const original = toggle.innerHTML;
+        toggle.textContent = "Link copied";
+        window.setTimeout(() => { toggle.innerHTML = original; }, 1800);
+      }
+    } catch (error) {
+      window.prompt("Copy this link", url);
+    }
+  }
 }
 
 function sectionHead(eyebrow, title, note) {
@@ -1339,9 +1497,11 @@ function renderCountryReport(countryName = state.country) {
     ${readingGuide(country.illustrative
       ? `Figures for ${countryName} are illustrative placeholders, not survey results. They are replaced when the ${countryName} sector workbooks are uploaded.`
       : "Figures come from the supplied water, energy, and agriculture sector workbooks.", Boolean(country.illustrative))}
-    `
+    `,
+    "country"
   ));
   section.dataset.country = countryName;
+  syncUrl();
 }
 
 async function generateAiNarrative(key, force = false) {
@@ -1736,6 +1896,11 @@ function currentViewUrl() {
     params.set("country", selectedRecord.country);
     params.set("place", selectedRecord.name);
   }
+  const openCountryTable = document.getElementById("fullReport")?.dataset.country;
+  if (openCountryTable && !selectedRecord) {
+    params.set("country", openCountryTable);
+    params.set("report", "country");
+  }
   const query = params.toString();
   return `${window.location.pathname}${query ? `?${query}` : ""}`;
 }
@@ -1964,7 +2129,11 @@ async function init() {
     setPanelCollapsed(!document.getElementById("mapApp").classList.contains("is-collapsed"));
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !document.getElementById("reportOverlay").hidden) closeReport();
+    if (event.key === "Escape" && !document.getElementById("reportOverlay").hidden) {
+      if (document.getElementById("sectionChooser")) closeSectionChooser();
+      else if (document.querySelector(".rp-export-menu")?.hidden === false) setExportMenu(false);
+      else closeReport();
+    }
     if (event.key === "Enter" && event.target.matches?.("tr[data-read-record]")) event.target.click();
   });
   const recordGrid = document.getElementById("recordGrid");
@@ -2028,13 +2197,39 @@ async function init() {
       return;
     }
 
-    if (event.target.closest("[data-close-report]")) {
-      closeReport();
+    const exportToggle = event.target.closest("[data-export-toggle]");
+    if (exportToggle) {
+      setExportMenu(document.querySelector(".rp-export-menu")?.hidden !== false);
+      return;
+    }
+    const exportItem = event.target.closest("[data-export]");
+    if (exportItem) {
+      handleExportAction(exportItem.getAttribute("data-export"), exportItem);
+      return;
+    }
+    if (!event.target.closest(".rp-export")) setExportMenu(false);
+
+    const chooser = document.getElementById("sectionChooser");
+    if (chooser && chooser.contains(event.target)) {
+      if (event.target.closest("[data-chooser-cancel]")) {
+        closeSectionChooser();
+      } else if (event.target.closest("[data-chooser-all]") || event.target.closest("[data-chooser-clear]")) {
+        const checked = Boolean(event.target.closest("[data-chooser-all]"));
+        chooser.querySelectorAll("input[type=checkbox]").forEach((box) => { box.checked = checked; });
+        updateChooserCount();
+      } else if (event.target.closest("[data-chooser-download]")) {
+        const boxes = [...chooser.querySelectorAll("input[type=checkbox]")];
+        const chosen = boxes.filter((box) => box.checked).map((box) => box.value);
+        if (chosen.length) {
+          startDownload(exportUrl("pdf", chosen.length === boxes.length ? null : chosen));
+          closeSectionChooser();
+        }
+      }
       return;
     }
 
-    if (event.target.closest("[data-print-report]")) {
-      window.print();
+    if (event.target.closest("[data-close-report]")) {
+      closeReport();
       return;
     }
 
@@ -2098,6 +2293,10 @@ async function init() {
   });
 
   applyState();
+
+  if (!requestedPlace && params.get("report") === "country" && state.country !== "__all__") {
+    renderCountryReport(state.country);
+  }
 
   if (requestedPlace && state.country !== "__all__" && recordByKey(`${state.country}::${requestedPlace}`)) {
     const key = `${state.country}::${requestedPlace}`;

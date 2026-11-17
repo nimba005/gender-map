@@ -11,7 +11,7 @@ WORKDIR /app
 COPY deploy/requirements.txt ./requirements-deploy.txt
 RUN pip install -r requirements-deploy.txt
 
-COPY app.py ./
+COPY app.py exports.py ./
 COPY templates ./templates
 COPY static ./static
 COPY tools ./tools

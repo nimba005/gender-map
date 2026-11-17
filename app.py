@@ -1123,6 +1123,55 @@ def data_files(filename):
     return send_from_directory(DATA_DIR, filename)
 
 
+@app.route("/export/<kind>.<fmt>")
+def export_report(kind, fmt):
+    """Download a place or country report as PDF (with chosen sections) or Excel."""
+    if kind not in ("place", "country") or fmt not in ("pdf", "xlsx"):
+        return jsonify({"error": "Unknown export"}), 404
+    try:
+        import exports
+    except ImportError:
+        return jsonify({"error": "Exports need the reportlab and openpyxl packages on the server."}), 503
+
+    payload = merged_hotspot_payload()
+    country = request.args.get("country", "")
+    country_meta = next((item for item in payload.get("countries", []) if item.get("country") == country), None)
+    if not country_meta:
+        return jsonify({"error": "Unknown country"}), 404
+    records = payload.get("records", {}).get(country, [])
+    sectors = payload.get("meta", {}).get("sectors", SECTORS)
+
+    if kind == "place":
+        place = request.args.get("place", "")
+        record = next((item for item in records if item.get("name") == place), None)
+        if not record:
+            return jsonify({"error": "Unknown place"}), 404
+        valid = [key for key, _ in exports.PLACE_SECTIONS]
+        label = place
+    else:
+        record = None
+        valid = [key for key, _ in exports.COUNTRY_SECTIONS]
+        label = f"all {country_meta.get('admin_label', 'places')}"
+
+    requested = [key for key in request.args.get("sections", "").split(",") if key in valid]
+    selected = requested or valid
+    if fmt == "pdf":
+        body = (exports.place_pdf(record, records, country_meta, sectors, selected) if record
+                else exports.country_pdf(country_meta, records, sectors, selected))
+        mimetype = "application/pdf"
+    else:
+        body = (exports.place_xlsx(record, records, country_meta, sectors) if record
+                else exports.country_xlsx(country_meta, records, sectors))
+        mimetype = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+    filename = secure_filename(f"gender-hotspot-{country}-{label}".lower().replace(" ", "-")) + f".{fmt}"
+    disposition = "inline" if request.args.get("inline") == "1" and fmt == "pdf" else "attachment"
+    response = app.response_class(body, mimetype=mimetype)
+    response.headers["Content-Disposition"] = f'{disposition}; filename="{filename}"'
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 @app.route("/uploads/documents/<path:filename>")
 def uploaded_document(filename):
     return send_from_directory(PDF_DIR, filename)

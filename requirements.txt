@@ -57,3 +57,4 @@ whitenoise==6.7.0
 # python -m venv .venv
 # source .venv/bin/activate (Mac/Linux)
 # .venv\Scripts\activate (Windows)
+reportlab>=4.2          # PDF report exports

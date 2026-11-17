@@ -2046,3 +2046,213 @@ body.has-report-open {
     text-align: left;
   }
 }
+
+/* ---------- Export menu and section chooser ---------- */
+.rp-export {
+  position: relative;
+}
+
+.rp-export > .button {
+  gap: 8px;
+}
+
+.rp-export-caret {
+  transition: transform 0.15s ease;
+}
+
+.rp-export > .button[aria-expanded="true"] .rp-export-caret {
+  transform: rotate(180deg);
+}
+
+.rp-export-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  width: 320px;
+  padding: 6px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 18px 44px rgba(6, 20, 15, 0.22);
+  animation: ma-fade 0.14s ease;
+}
+
+.rp-export-menu button {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 8px;
+  color: var(--ink);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.rp-export-menu button:hover,
+.rp-export-menu button:focus-visible {
+  background: var(--surface-soft);
+  outline: none;
+}
+
+.rp-export-menu svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--brand);
+}
+
+.rp-export-menu strong {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 700;
+}
+
+.rp-export-menu small {
+  display: block;
+  margin-top: 1px;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.rp-chooser {
+  position: fixed;
+  inset: 0;
+  z-index: 3100;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.rp-chooser-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(6, 20, 15, 0.5);
+  animation: ma-fade 0.15s ease;
+}
+
+.rp-chooser-card {
+  position: relative;
+  width: min(460px, 100%);
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 28px 70px rgba(6, 20, 15, 0.4);
+  animation: ma-fade 0.18s ease;
+}
+
+.rp-chooser-card h3 {
+  margin: 0;
+  padding: 20px 22px 0;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.rp-chooser-card > p {
+  margin: 4px 0 0;
+  padding: 0 22px;
+  color: var(--muted);
+  font-size: 13.5px;
+}
+
+.rp-chooser-tools {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 22px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.rp-chooser-tools button {
+  padding: 0;
+  border: 0;
+  color: var(--brand);
+  background: transparent;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rp-chooser-tools button:hover {
+  color: var(--brand-2);
+  text-decoration: underline;
+}
+
+.rp-chooser-tools span {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.rp-chooser-list {
+  overflow-y: auto;
+  padding: 8px 12px;
+}
+
+.rp-chooser-list label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 14.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.rp-chooser-list label:hover {
+  background: var(--surface-soft);
+}
+
+.rp-chooser-list input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--brand);
+  cursor: pointer;
+}
+
+.rp-chooser-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 22px 18px;
+  border-top: 1px solid var(--border);
+}
+
+.rp-chooser-foot .button {
+  min-height: 42px;
+  padding: 0 18px;
+}
+
+.rp-chooser-foot .button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 520px) {
+  .rp-export-menu {
+    position: fixed;
+    top: auto;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    margin-top: 8px;
+  }
+}
+
+@media print {
+  .rp-chooser {
+    display: none !important;
+  }
+}
