@@ -7,29 +7,21 @@
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
     crossorigin="">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/map-app.css') }}">
 {% endblock %}
 
 {% block content %}
-<section class="map-shell">
-  <aside class="control-panel" aria-label="Map filters">
-    <div class="panel-heading">
-      <span class="eyebrow">Interactive study map</span>
-      <h1>Gender Hotspot Map</h1>
-      <p>Filter country, sector, metric, and risk level to review hotspot priorities.</p>
-    </div>
+<section class="ma" id="mapApp" aria-label="Interactive gender hotspot map">
+  <div class="ma-bar">
+    <div class="ma-countries" id="countryCards" aria-label="Country"></div>
+    <select id="countrySelect" hidden aria-hidden="true" tabindex="-1"></select>
 
-    <div class="filter-stack">
-      <label>
-        <span>Country</span>
-        <select id="countrySelect"></select>
-      </label>
-
-      <label>
+    <div class="ma-filters">
+      <label class="ma-field">
         <span>Sector</span>
         <select id="sectorSelect"></select>
       </label>
-
-      <label>
+      <label class="ma-field">
         <span>Metric</span>
         <select id="metricSelect">
           <option value="gender_hotspot_score">Gender hotspot score</option>
@@ -40,9 +32,8 @@
           <option value="risk_level">Risk level</option>
         </select>
       </label>
-
-      <label>
-        <span>Risk level</span>
+      <label class="ma-field">
+        <span>Risk</span>
         <select id="riskSelect">
           <option value="__all__">All risk levels</option>
           <option value="Very High">Very High</option>
@@ -52,120 +43,116 @@
           <option value="Very Low">Very Low</option>
         </select>
       </label>
-
-      <label>
-        <span>Search county / district / region</span>
-        <input id="searchInput" type="search" placeholder="Type a place name">
+      <label class="ma-search">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.500-3.500"/></svg>
+        <input id="searchInput" type="search" placeholder="Search a place" aria-label="Search county, district, or region">
       </label>
+      <button class="ma-icon-button" id="resetFilters" type="button" title="Reset all filters" aria-label="Reset all filters">
+        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.700"/><path d="M3 4v5h5"/></svg>
+      </button>
     </div>
+  </div>
 
-    <div class="metric-note" id="metricNote"></div>
-    <div class="data-notice" id="dataNotice" hidden></div>
-    <div class="filter-actions">
-      <button class="button button-secondary filter-reset" id="resetFilters" type="button">Reset to all sectors and countries</button>
-    </div>
-  </aside>
+  <div class="ma-body">
+    <div class="ma-stage">
+      <div id="map" class="ma-map" aria-label="Gender hotspot map"></div>
 
-  <section class="map-workspace">
-    <div class="country-cards" id="countryCards"></div>
-
-    <div class="summary-grid" id="summaryGrid">
-      <article>
-        <span>Visible records</span>
-        <strong id="visibleCount">0</strong>
-      </article>
-      <article>
-        <span>Average score</span>
-        <strong id="averageScore">N/A</strong>
-      </article>
-      <article>
-        <span>Highest hotspot</span>
-        <strong id="highestHotspot">N/A</strong>
-      </article>
-      <article>
-        <span>Top sector</span>
-        <strong id="topSector">N/A</strong>
-      </article>
-    </div>
-
-    <div class="map-card">
-      <div id="map" class="map" aria-label="Gender hotspot map"></div>
-      <div class="map-legend" id="mapLegend"></div>
-    </div>
-
-    <section class="county-overview" id="countyOverview" hidden>
-      <div>
-        <span class="card-kicker" id="overviewKicker">County overview</span>
-        <h2 id="overviewTitle">Select a county</h2>
-        <p id="overviewSummary"></p>
+      <div class="ma-kpis" id="summaryGrid">
+        <div><span>Places</span><strong id="visibleCount">0</strong></div>
+        <div><span>Average score</span><strong id="averageScore">N/A</strong></div>
+        <div><span>Highest hotspot</span><strong id="highestHotspot">N/A</strong></div>
+        <div><span>Top sector</span><strong id="topSector">N/A</strong></div>
       </div>
-      <div class="overview-score">
-        <span>Selected metric</span>
-        <strong id="overviewScore">N/A</strong>
+
+      <div class="ma-notice" id="dataNotice" hidden></div>
+      <div class="ma-legend" id="mapLegend"></div>
+
+      <button class="ma-panel-toggle" id="panelToggle" type="button" aria-expanded="true" aria-controls="sidePanel" title="Hide or show the side panel" aria-label="Hide or show the side panel">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+      </button>
+    </div>
+
+    <aside class="ma-panel" id="sidePanel" data-mode="places" aria-label="Places and insights">
+      <div class="ma-tabs" role="tablist">
+        <button type="button" role="tab" data-panel-tab="places" aria-selected="true">Places</button>
+        <button type="button" role="tab" data-panel-tab="insights" aria-selected="false">Insights</button>
       </div>
-      <div class="overview-grid" id="overviewGrid"></div>
-      <div class="overview-actions">
-        <button class="button button-secondary" id="overviewBack" type="button">Back to all counties</button>
-        <button class="button button-primary" id="overviewReadMore" type="button">Read full report</button>
-      </div>
-    </section>
 
-    <section class="analytics-grid">
-      <article class="chart-panel">
-        <div>
-          <span class="card-kicker">Sector profile</span>
-          <h2>Average hotspot by sector</h2>
-        </div>
-        <div class="bar-chart" id="sectorChart"></div>
-        <div class="chart-detail-panel" id="sectorChartDetail"></div>
-      </article>
-
-      <article class="chart-panel">
-        <div>
-          <span class="card-kicker">Risk distribution</span>
-          <h2>Visible records by risk class</h2>
-        </div>
-        <div class="risk-list" id="riskList"></div>
-        <div class="chart-detail-panel" id="riskChartDetail"></div>
-      </article>
-    </section>
-
-    <section class="records-section">
-      <div class="records-header">
-        <div>
-          <span class="card-kicker">Hotspot records</span>
-          <h2 id="recordsTitle">Study records</h2>
-          <p id="recordsIntro">Select a country to move from the regional view into detailed hotspot records and reports.</p>
-        </div>
-        <div class="records-tools">
-          <button class="button button-secondary records-back-button" id="recordsBackButton" type="button" hidden>Back to all countries</button>
-          <button class="tool-button" id="copyLinkButton" type="button" title="Copy a link to this exact view">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
-            <span>Copy link</span>
-          </button>
-          <button class="tool-button" id="downloadCsvButton" type="button" title="Download the visible records as a spreadsheet (CSV)">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>
-            <span>Download CSV</span>
-          </button>
-          <select id="sortSelect" aria-label="Sort records">
+      <section class="ma-view ma-view-places" data-view="places">
+        <header class="ma-view-head">
+          <div>
+            <h2 id="recordsTitle">Study records</h2>
+            <p id="recordsIntro"></p>
+          </div>
+          <button class="ma-link-button" id="recordsBackButton" type="button" hidden>All countries</button>
+        </header>
+        <div class="ma-list-tools">
+          <select id="sortSelect" aria-label="Sort places">
             <option value="score_desc">Score: high to low</option>
             <option value="score_asc">Score: low to high</option>
             <option value="name_asc">Name: A to Z</option>
             <option value="risk_desc">Risk: high to low</option>
           </select>
+          <button class="tool-button" id="copyLinkButton" type="button" title="Copy a link to this exact view">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
+            <span>Copy link</span>
+          </button>
+          <button class="tool-button" id="downloadCsvButton" type="button" title="Download the visible places as a spreadsheet (CSV)">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>
+            <span>CSV</span>
+          </button>
         </div>
-      </div>
-      <div class="record-grid" id="recordGrid"></div>
-      <div class="show-more-row" id="showMoreRow" hidden>
-        <span id="showMoreCount"></span>
-        <button class="button button-secondary" id="showMoreButton" type="button">Show more</button>
-      </div>
-      <div class="empty-state" id="emptyState" hidden>
-        <h3>No records match this view.</h3>
-        <p>Try clearing the search box or choosing a different risk level, sector, or country.</p>
-      </div>
-    </section>
-  </section>
+        <div class="ma-list" id="recordGrid"></div>
+        <div class="ma-more" id="showMoreRow" hidden>
+          <span id="showMoreCount"></span>
+          <button class="ma-link-button" id="showMoreButton" type="button">Show more</button>
+        </div>
+        <div class="ma-empty" id="emptyState" hidden>
+          <strong>No places match this view.</strong>
+          <p>Clear the search or choose a different risk level, sector, or country.</p>
+        </div>
+      </section>
+
+      <section class="ma-view ma-view-insights" data-view="insights">
+        <div class="ma-note" id="metricNote"></div>
+        <article class="ma-chart">
+          <h3>Average hotspot by sector</h3>
+          <div class="bar-chart" id="sectorChart"></div>
+          <div class="ma-chart-detail" id="sectorChartDetail"></div>
+        </article>
+        <article class="ma-chart">
+          <h3>Places by risk class</h3>
+          <div class="risk-list" id="riskList"></div>
+          <div class="ma-chart-detail" id="riskChartDetail"></div>
+        </article>
+      </section>
+
+      <section class="ma-view ma-detail" id="countyOverview" hidden>
+        <button class="ma-back" id="overviewBack" type="button">Back</button>
+        <div class="ma-detail-head">
+          <div>
+            <span class="ma-kicker" id="overviewKicker">Overview</span>
+            <h2 id="overviewTitle">Select a place</h2>
+          </div>
+          <div class="ma-detail-score" id="overviewScoreBox">
+            <strong id="overviewScore">N/A</strong>
+            <small id="overviewRisk"></small>
+          </div>
+        </div>
+        <p class="ma-detail-summary" id="overviewSummary"></p>
+        <div class="ma-detail-grid" id="overviewGrid"></div>
+        <button class="button button-primary ma-detail-cta" id="overviewReadMore" type="button">
+          Read full report
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.200" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </section>
+    </aside>
+  </div>
+
+  <div class="ma-report" id="reportOverlay" hidden>
+    <div class="ma-report-backdrop" data-close-report></div>
+    <div class="ma-report-sheet" id="reportHost" role="dialog" aria-modal="true" aria-label="Full report" tabindex="-1"></div>
+  </div>
 </section>
 {% endblock %}
 

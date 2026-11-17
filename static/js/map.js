@@ -49,6 +49,8 @@ let maskLayer;
 let outlineLayer;
 let countryOutlines = null;
 let selectedRecord = null;
+let panelTab = "places";
+const layerByKey = new Map();
 
 const WORLD_RING = [[-89, -540], [-89, 540], [89, 540], [89, -540]];
 
@@ -182,7 +184,7 @@ function buildOptions(select, values, allLabel) {
 
 function initMap() {
   map = L.map("map", {
-    zoomControl: true,
+    zoomControl: false,
     scrollWheelZoom: true,
     minZoom: 3,
     maxZoom: 10,
@@ -225,6 +227,7 @@ function initMap() {
 
   map._usingGoogleBasemap = Boolean(L.gridLayer?.googleMutant && window.google?.maps);
   L.control.layers(baseLayers, null, { collapsed: true }).addTo(map);
+  L.control.zoom({ position: "topright" }).addTo(map);
 
   // Stacking: basemap < focus mask < places < country markers < tooltips and popups.
   map.createPane("focusMask").style.zIndex = 350;
@@ -287,13 +290,12 @@ function countryByName(name) {
 
 function renderCountryCards() {
   const container = document.getElementById("countryCards");
-  container.innerHTML = hotspotData.countries.map((country) => `
-    <button class="country-card ${state.country === country.country ? "is-active" : ""}" data-country="${country.country}" type="button">
-      <span class="risk-dot" style="background:${colorForCountry(country)}"></span>
-      <strong>${country.country}</strong>
-      <small>${country.status}</small>
-      <span>${country.record_count || 0} ${country.admin_label.toLowerCase()} loaded</span>
-      <em>Open country view</em>
+  const total = hotspotData.countries.reduce((sum, country) => sum + (country.record_count || 0), 0);
+  const tabs = [{ country: "__all__", label: "All countries", count: total }]
+    .concat(hotspotData.countries.map((country) => ({ country: country.country, label: country.country, count: country.record_count || 0 })));
+  container.innerHTML = tabs.map((tab) => `
+    <button class="ma-country-tab ${state.country === tab.country ? "is-active" : ""}" data-country="${escapeHtml(tab.country)}" type="button" aria-pressed="${state.country === tab.country}">
+      ${escapeHtml(tab.label)} <small>${tab.count}</small>
     </button>
   `).join("");
 
@@ -301,6 +303,7 @@ function renderCountryCards() {
     button.addEventListener("click", () => {
       state.country = button.dataset.country;
       document.getElementById("countrySelect").value = state.country;
+      if (selectedRecord) clearSelectedRecord();
       applyState();
     });
   });
@@ -365,6 +368,17 @@ function styleCounty(feature) {
   };
 }
 
+// Number shown as "the score" for a place under the current filters.
+function displayScore(record) {
+  if (state.metric !== "risk_level") return metricForRecord(record);
+  return state.sector === "__all__" ? record.composite_score : record.metrics?.[state.sector]?.gender_hotspot_score;
+}
+
+// Text colour that stays readable on each risk colour.
+function inkOnRisk(risk) {
+  return risk === "Medium" || risk === "Low" ? "#1a1a0a" : "#ffffff";
+}
+
 function refreshCountyStyles() {
   if (countyLayer) countyLayer.setStyle(styleCounty);
 }
@@ -415,7 +429,7 @@ function popupForRecord(record) {
           <span class="popup-kicker">${escapeHtml(record.country)} &middot; ${escapeHtml(placeLabel(record.country))}</span>
           <strong>${escapeHtml(record.name)}</strong>
         </div>
-        <div class="popup-score" style="background:${color}">
+        <div class="popup-score" style="background:${color};color:${inkOnRisk(risk)}">
           <b>${formatScore(state.sector === "__all__" ? record.composite_score : metrics.gender_hotspot_score)}</b>
           <small>${escapeHtml(risk)}</small>
         </div>
@@ -952,67 +966,121 @@ function documentSections(record) {
   `;
 }
 
-function selectRecord(key, shouldScroll = true) {
+function selectRecord(key, focusPanel = true) {
   const record = recordByKey(key);
   if (!record) return;
   selectedRecord = record;
 
   const activeSector = sectorForDisplay(record);
   const metrics = record.metrics[activeSector] || {};
+  const risk = riskForRecord(record);
+  const place = placeLabel(record.country);
   const overview = document.getElementById("countyOverview");
-  document.getElementById("overviewKicker").textContent = `${record.country} ${placeLabel(record.country).toLowerCase()} overview${record.data_status === "illustrative" ? " - illustrative data" : ""}`;
-  document.getElementById("overviewBack").textContent = `Back to all ${adminLabel(record.country).toLowerCase()}`;
+  document.getElementById("overviewKicker").textContent = `${record.country} · ${place}${record.data_status === "illustrative" ? " · illustrative data" : ""}`;
+  document.getElementById("overviewBack").textContent = `All ${adminLabel(record.country).toLowerCase()}`;
   document.getElementById("overviewTitle").textContent = record.name;
-  document.getElementById("overviewScore").textContent = formatScore(metricForRecord(record));
+  document.getElementById("overviewScore").textContent = formatScore(displayScore(record));
+  document.getElementById("overviewRisk").textContent = risk;
+  const scoreBox = document.getElementById("overviewScoreBox");
+  scoreBox.style.background = RISK_COLORS[risk] || RISK_COLORS["No data"];
+  scoreBox.style.color = inkOnRisk(risk);
   document.getElementById("overviewSummary").textContent =
     state.sector === "__all__"
-      ? `${record.name} is currently classified as ${riskForRecord(record)} overall. The overview uses the composite picture across sectors and highlights ${activeSector} as the strongest current sector signal.`
-      : `${record.name} is currently classified as ${riskForRecord(record)} for ${state.sector}. The overview below highlights the selected sector, while the full report compares all sectors for this ${placeLabel(record.country).toLowerCase()}.`;
+      ? `${record.name} is classed as ${risk} overall across the three sectors. ${activeSector} is its strongest pressure.`
+      : `${record.name} is classed as ${risk} for ${state.sector}. The full report compares all three sectors.`;
 
+  const indicators = (metrics.indicators || []).slice(0, 3).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
   document.getElementById("overviewGrid").innerHTML = `
-    <article><span>Risk level</span><strong>${escapeHtml(riskForRecord(record))}</strong></article>
-    <article><span>Exposure</span><strong>${formatScore(metrics.exposure)}</strong></article>
-    <article><span>Sensitivity</span><strong>${formatScore(metrics.sensitivity)}</strong></article>
-    <article><span>Adaptive capacity</span><strong>${formatScore(metrics.adaptive_capacity)}</strong></article>
-    <article><span>Vulnerability</span><strong>${formatScore(metrics.vulnerability_score)}</strong></article>
-    <article><span>Top pressure</span><strong>${escapeHtml(record.top_sector || "N/A")}</strong></article>
+    <div class="ma-facts">
+      <div><span>Strongest pressure</span><strong>${escapeHtml(record.top_sector || "N/A")}</strong></div>
+      <div><span>Vulnerability</span><strong>${formatScore(metrics.vulnerability_score)}</strong></div>
+    </div>
+    <h3>${escapeHtml(activeSector)} components</h3>
+    <div class="popup-bars">
+      ${popupBar("Exposure", metrics.exposure, "risk")}
+      ${popupBar("Sensitivity", metrics.sensitivity, "risk")}
+      ${popupBar("Adaptive capacity", metrics.adaptive_capacity, "good")}
+    </div>
+    <h3>Hotspot score by sector</h3>
+    <div class="popup-bars">
+      ${hotspotData.meta.sectors.map((sector) => popupBar(sector, record.metrics?.[sector]?.gender_hotspot_score, "brand")).join("")}
+    </div>
+    ${indicators ? `<h3>Key indicators</h3><ul>${indicators}</ul>` : ""}
   `;
   overview.hidden = false;
   setDetailMode(true);
 
-  document.querySelectorAll(".record-card").forEach((card) => {
-    card.classList.toggle("is-selected", card.dataset.recordName === recordKey(record));
+  document.querySelectorAll("[data-record-name]").forEach((row) => {
+    row.classList.toggle("is-selected", row.dataset.recordName === recordKey(record));
   });
 
   refreshCountyStyles();
-  if (shouldScroll) {
-    overview.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (focusPanel) {
+    setPanelCollapsed(false);
+    overview.scrollTop = 0;
   }
   syncUrl();
 }
 
 function setDetailMode(isFocused) {
-  const records = document.querySelector(".records-section");
-  if (records) records.hidden = Boolean(isFocused);
+  const panel = document.getElementById("sidePanel");
+  if (!panel) return;
+  panel.dataset.mode = isFocused ? "detail" : panelTab;
+  panel.querySelectorAll("[data-panel-tab]").forEach((tab) => {
+    tab.setAttribute("aria-selected", String(tab.dataset.panelTab === panelTab));
+  });
+}
+
+function setPanelCollapsed(collapsed) {
+  const app = document.getElementById("mapApp");
+  if (!app || app.classList.contains("is-collapsed") === collapsed) return;
+  app.classList.toggle("is-collapsed", collapsed);
+  document.getElementById("panelToggle")?.setAttribute("aria-expanded", String(!collapsed));
+  window.setTimeout(() => map && map.invalidateSize(), 260);
+}
+
+function closeReport() {
+  document.getElementById("fullReport")?.remove();
+  const overlay = document.getElementById("reportOverlay");
+  if (overlay) overlay.hidden = true;
+  document.body.classList.remove("has-report-open");
+}
+
+// Zooms the map to one place (used when a place is picked from the list or a link).
+function focusPlaceOnMap(key) {
+  const layer = layerByKey.get(key);
+  if (!layer || !map) return;
+  map.fitBounds(layer.getBounds(), { maxZoom: 7, padding: [70, 70] });
+}
+
+function setListHover(key, isOn) {
+  const layer = layerByKey.get(key);
+  if (!layer) return;
+  if (isOn) {
+    layer.setStyle({ weight: 3, color: "#ffffff", fillOpacity: 0.97 });
+    layer.bringToFront();
+    layer.getElement()?.classList.add("is-hovered");
+  } else {
+    layer.getElement()?.classList.remove("is-hovered");
+    if (countyLayer) countyLayer.resetStyle(layer);
+  }
 }
 
 function clearSelectedRecord() {
   selectedRecord = null;
   const overview = document.getElementById("countyOverview");
   if (overview) overview.hidden = true;
-  document.getElementById("fullReport")?.remove();
+  closeReport();
   setDetailMode(false);
-  document.querySelectorAll(".record-card").forEach((card) => card.classList.remove("is-selected"));
+  document.querySelectorAll("[data-record-name]").forEach((row) => row.classList.remove("is-selected"));
   refreshCountyStyles();
-  map.closePopup();
-  document.querySelector(".records-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  if (map) map.closePopup();
   syncUrl();
 }
 
 function renderFullReport(record = selectedRecord) {
   if (!record) return;
   const existing = document.getElementById("fullReport");
-  if (existing) existing.remove();
 
   const section = document.createElement("section");
   section.id = "fullReport";
@@ -1045,8 +1113,13 @@ function renderFullReport(record = selectedRecord) {
     </div>
   `;
 
-  document.getElementById("countyOverview").after(section);
-  section.scrollIntoView({ behavior: "smooth", block: "start" });
+  const host = document.getElementById("reportHost");
+  const previousScroll = existing ? host.scrollTop : 0;
+  host.replaceChildren(section);
+  document.getElementById("reportOverlay").hidden = false;
+  document.body.classList.add("has-report-open");
+  host.scrollTop = previousScroll;
+  host.focus({ preventScroll: true });
 }
 
 async function generateAiNarrative(key, force = false) {
@@ -1093,6 +1166,7 @@ function renderCountyLayer() {
     map.removeLayer(countyLayer);
     countyLayer = null;
   }
+  layerByKey.clear();
 
   const countries = state.country === "__all__" ? Object.keys(boundaries) : [state.country];
   const visibleKeys = new Set(getFilteredRecords().map(recordKey));
@@ -1108,7 +1182,8 @@ function renderCountyLayer() {
     onEachFeature(feature, layer) {
       const record = recordForFeature(feature);
       if (!record) return;
-      layer.bindPopup(() => popupForRecord(record), { className: "place-popup", maxWidth: 320, minWidth: 270 });
+      layerByKey.set(recordKey(record), layer);
+      layer.bindPopup(() => popupForRecord(record), { className: "place-popup", maxWidth: 320, minWidth: 270, autoPanPaddingTopLeft: [16, 84], autoPanPaddingBottomRight: [60, 30] });
       layer.bindTooltip(() => hoverCardForRecord(record), {
         sticky: true,
         direction: "top",
@@ -1140,6 +1215,8 @@ function formatScoreOrRisk(record) {
 }
 
 let lastFitKey = null;
+// Keeps fitted areas clear of the summary strip and the legend.
+const FIT_PADDING = { paddingTopLeft: [28, 84], paddingBottomRight: [28, 44] };
 
 function fitMap(force = false) {
   // Only move the map when the country changes, so filtering and selecting places does not reset the view.
@@ -1150,7 +1227,7 @@ function fitMap(force = false) {
     const group = L.featureGroup();
     hotspotData.countries.forEach((country) => group.addLayer(L.marker(country.center)));
     Object.values(boundaries).forEach((geojson) => group.addLayer(L.geoJSON(geojson)));
-    map.fitBounds(group.getBounds().pad(0.08));
+    map.fitBounds(group.getBounds(), FIT_PADDING);
     map.panInsideBounds(AFRICA_BOUNDS, { animate: false });
     return;
   }
@@ -1159,7 +1236,7 @@ function fitMap(force = false) {
   if (!country) return;
   const countryFeatures = boundaries[state.country]?.features || [];
   if (countryFeatures.length) {
-    map.fitBounds(L.geoJSON({ type: "FeatureCollection", features: countryFeatures }).getBounds().pad(0.05));
+    map.fitBounds(L.geoJSON({ type: "FeatureCollection", features: countryFeatures }).getBounds(), FIT_PADDING);
     map.panInsideBounds(AFRICA_BOUNDS, { animate: false });
     return;
   }
@@ -1253,12 +1330,15 @@ function renderRiskList(records) {
     }
   });
 
+  const largest = Math.max(1, ...Object.values(counts));
   document.getElementById("riskList").innerHTML = [...RISK_ORDER].reverse().map((risk) => `
     <button class="risk-row interactive-chart-row ${state.risk === risk ? "is-active" : ""}" type="button"
       data-risk-chart="${escapeHtml(risk)}"
       data-count="${counts[risk]}"
-      data-samples="${escapeHtml(samples[risk].join(', '))}">
-      <span><i style="background:${RISK_COLORS[risk]}"></i>${risk}</span>
+      data-samples="${escapeHtml(samples[risk].join(', '))}"
+      aria-label="${escapeHtml(risk)}: ${counts[risk]} places">
+      <span class="risk-name"><i style="background:${RISK_COLORS[risk]}"></i>${risk}</span>
+      <span class="risk-bar"><i style="width:${(counts[risk] / largest) * 100}%;background:${RISK_COLORS[risk]}"></i></span>
       <strong>${counts[risk]}</strong>
     </button>
   `).join("");
@@ -1306,11 +1386,9 @@ function updateRiskChartDetailFromElement(element) {
 
 function renderCountryRecordCards(records) {
   const grid = document.getElementById("recordGrid");
-  const intro = document.getElementById("recordsIntro");
-  const empty = document.getElementById("emptyState");
-  document.getElementById("recordsTitle").textContent = "Country workspaces";
-  intro.textContent = "Choose one of the four country workspaces below to open its detailed hotspot records, reports, documents, and AI narratives.";
-  empty.hidden = true;
+  document.getElementById("recordsTitle").textContent = "Study countries";
+  document.getElementById("recordsIntro").textContent = "Pick a country to list its places, or click any area on the map.";
+  document.getElementById("emptyState").hidden = true;
 
   const byCountry = new Map();
   records.forEach((record) => {
@@ -1320,34 +1398,32 @@ function renderCountryRecordCards(records) {
 
   grid.innerHTML = hotspotData.countries.map((country) => {
     const countryRecords = byCountry.get(country.country) || [];
-    const scores = countryRecords
-      .map((record) => Number(metricForRecord(record)))
-      .filter(Number.isFinite);
-    const average = scores.length
-      ? scores.reduce((sum, value) => sum + value, 0) / scores.length
-      : country.average_score;
+    const scores = countryRecords.map((record) => Number(displayScore(record))).filter(Number.isFinite);
+    const average = scores.length ? scores.reduce((sum, value) => sum + value, 0) / scores.length : null;
     const highest = countryRecords.length
-      ? countryRecords.reduce((best, record) => (Number(metricForRecord(record)) || 0) > (Number(metricForRecord(best)) || 0) ? record : best, countryRecords[0])
+      ? countryRecords.reduce((best, record) => (Number(displayScore(record)) || 0) > (Number(displayScore(best)) || 0) ? record : best, countryRecords[0])
       : null;
+    const strip = [...RISK_ORDER].reverse().map((risk) => {
+      const count = countryRecords.filter((record) => riskForRecord(record) === risk).length;
+      return count ? `<i style="flex:${count};background:${RISK_COLORS[risk]}" title="${escapeHtml(risk)}: ${count}"></i>` : "";
+    }).join("");
 
     return `
-      <article class="country-record-card" data-open-country="${escapeHtml(country.country)}">
-        <div class="country-record-top">
-          <div>
-            <span class="card-kicker">${escapeHtml(country.admin_label)} workspace</span>
-            <h3>${escapeHtml(country.country)}</h3>
-          </div>
-          <i class="risk-dot" style="background:${colorForCountry(country)}"></i>
-        </div>
-        <p>${escapeHtml(country.status)}</p>
-        <div class="country-record-metrics">
-          <span>Visible records <strong>${countryRecords.length}</strong></span>
-          <span>Average score <strong>${formatScore(average)}</strong></span>
-          <span>Highest hotspot <strong>${escapeHtml(highest?.name || country.highest_hotspot || "Awaiting data")}</strong></span>
-          <span>Top sector <strong>${escapeHtml(highest?.top_sector || country.top_sector || "Awaiting data")}</strong></span>
-        </div>
-        <button class="read-more-btn" type="button" data-open-country="${escapeHtml(country.country)}">Open detailed records</button>
-      </article>
+      <button class="ma-country" type="button" data-open-country="${escapeHtml(country.country)}">
+        <span class="ma-country-top">
+          <strong>${escapeHtml(country.country)}</strong>
+          <span class="ma-pill ${country.illustrative ? "is-illustrative" : ""}">${country.illustrative ? "Illustrative data" : "Workbook data"}</span>
+        </span>
+        <span class="ma-strip" role="img" aria-label="Risk class mix">${strip}</span>
+        <span class="ma-country-stats">
+          <span><b>${countryRecords.length}</b> ${escapeHtml(country.admin_label.toLowerCase())}</span>
+          <span><b>${formatScore(average)}</b> average</span>
+        </span>
+        <span class="ma-country-foot">
+          <span>Highest: <b>${escapeHtml(highest?.name || "No match")}</b></span>
+          <em>Open <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.400" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></em>
+        </span>
+      </button>
     `;
   }).join("");
 }
@@ -1355,9 +1431,9 @@ function renderCountryRecordCards(records) {
 function renderRecordCards(records) {
   const grid = document.getElementById("recordGrid");
   const empty = document.getElementById("emptyState");
-  const intro = document.getElementById("recordsIntro");
-
   const showMoreRow = document.getElementById("showMoreRow");
+  const sortTools = document.getElementById("sortSelect");
+  sortTools.hidden = state.country === "__all__";
   if (state.country === "__all__") {
     showMoreRow.hidden = true;
     renderCountryRecordCards(records);
@@ -1375,41 +1451,33 @@ function renderRecordCards(records) {
   document.getElementById("showMoreCount").textContent = `Showing ${records.length} of ${total}`;
   document.getElementById("showMoreButton").textContent = `Show ${Math.min(PAGE_SIZE, total - records.length)} more`;
 
-  document.getElementById("recordsTitle").textContent = `${state.country} hotspot records`;
-  intro.textContent = `Detailed hotspot records for ${state.country}. Use the cards below to open ${placeLabel(state.country).toLowerCase()} reports one place at a time.`;
+  document.getElementById("recordsTitle").textContent = `${state.country} ${adminLabel(state.country).toLowerCase()}`;
+  document.getElementById("recordsIntro").textContent = `${total} shown · ${selectedSectorLabel()} · ${metricLabel(state.metric)}`;
 
   empty.hidden = total > 0;
   grid.innerHTML = records.map((record) => {
-    const activeSector = sectorForDisplay(record);
-    const metrics = record.metrics[activeSector] || {};
-    const indicators = (metrics.indicators || []).slice(0, 3).map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+    const key = escapeHtml(recordKey(record));
+    const score = displayScore(record);
+    const width = Math.max(0, Math.min(100, Number(score) || 0));
+    const isSelected = selectedRecord && recordKey(selectedRecord) === recordKey(record);
     return `
-      <article class="record-card ${selectedRecord && recordKey(selectedRecord) === recordKey(record) ? "is-selected" : ""}" data-record-name="${escapeHtml(recordKey(record))}">
-        <div class="record-top">
-          <div>
-            <span class="card-kicker">${escapeHtml(record.country)} - ${escapeHtml(selectedSectorLabel())}</span>
-            <h3>${escapeHtml(record.name)}</h3>
-          </div>
-          <strong style="color:${colorForRecord(record)}">${formatScore(metricForRecord(record))}</strong>
-        </div>
-        <div class="record-meta">
-          <span>${escapeHtml(riskForRecord(record))}</span>
-          <span>${state.sector === "__all__" ? `Reference sector: ${escapeHtml(activeSector)}` : `Top pressure: ${escapeHtml(record.top_sector || "N/A")}`}</span>
-        </div>
-        <div class="mini-grid">
-          <span>Exposure <strong>${formatScore(metrics.exposure)}</strong></span>
-          <span>Sensitivity <strong>${formatScore(metrics.sensitivity)}</strong></span>
-          <span>Capacity <strong>${formatScore(metrics.adaptive_capacity)}</strong></span>
-        </div>
-        <ul>${indicators}</ul>
-        <button class="read-more-btn" type="button" data-read-record="${escapeHtml(recordKey(record))}">Read full report</button>
-      </article>
+      <button class="ma-row ${isSelected ? "is-selected" : ""}" type="button" data-record-name="${key}" data-overview-record="${key}">
+        <i class="ma-row-dot" style="background:${colorForRecord(record)}"></i>
+        <span class="ma-row-main">
+          <strong>${escapeHtml(record.name)}</strong>
+          <small>${escapeHtml(riskForRecord(record))} risk · strongest: ${escapeHtml(record.top_sector || "N/A")}</small>
+        </span>
+        <span class="ma-row-score">
+          <b>${formatScore(score)}</b>
+          <span class="ma-row-bar"><i style="width:${width}%"></i></span>
+        </span>
+      </button>
     `;
   }).join("");
 }
 
 function renderLegend() {
-  document.getElementById("mapLegend").innerHTML = [...RISK_ORDER].reverse().map((risk) => `
+  document.getElementById("mapLegend").innerHTML = "<b>Risk class</b>" + [...RISK_ORDER].reverse().map((risk) => `
     <span><i style="background:${RISK_COLORS[risk]}"></i>${risk}</span>
   `).join("");
 }
@@ -1430,7 +1498,7 @@ function renderDataNotice() {
   notice.hidden = illustrative.length === 0;
   notice.innerHTML = illustrative.length ? `
     <strong>Illustrative data</strong>
-    <p>${escapeHtml(illustrative.map((country) => country.country).join(", "))} ${illustrative.length > 1 ? "use" : "uses"} placeholder figures, not survey results. Upload the sector workbooks from the admin dashboard to replace them.</p>
+    <span>${escapeHtml(illustrative.map((country) => country.country).join(", "))} ${illustrative.length > 1 ? "show" : "shows"} placeholder figures, not survey results.</span>
   ` : "";
 }
 
@@ -1543,7 +1611,7 @@ function applyState() {
     selectedRecord = null;
     const overview = document.getElementById("countyOverview");
     if (overview) overview.hidden = true;
-    document.getElementById("fullReport")?.remove();
+    closeReport();
     setDetailMode(false);
   }
   renderCountryCards();
@@ -1659,9 +1727,31 @@ async function init() {
     document.getElementById("countrySelect").value = state.country;
     clearSelectedRecord();
     applyState();
-    document.querySelector(".records-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
   });
   document.getElementById("resetFilters").addEventListener("click", resetFilters);
+
+  document.querySelectorAll("[data-panel-tab]").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      panelTab = tab.dataset.panelTab;
+      if (selectedRecord) clearSelectedRecord();
+      setDetailMode(false);
+    });
+  });
+  document.getElementById("panelToggle").addEventListener("click", () => {
+    setPanelCollapsed(!document.getElementById("mapApp").classList.contains("is-collapsed"));
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !document.getElementById("reportOverlay").hidden) closeReport();
+  });
+  const recordGrid = document.getElementById("recordGrid");
+  recordGrid.addEventListener("mouseover", (event) => {
+    const row = event.target.closest("[data-record-name]");
+    if (row) setListHover(row.dataset.recordName, true);
+  });
+  recordGrid.addEventListener("mouseout", (event) => {
+    const row = event.target.closest("[data-record-name]");
+    if (row && !row.contains(event.relatedTarget)) setListHover(row.dataset.recordName, false);
+  });
   document.getElementById("overviewReadMore").addEventListener("click", () => renderFullReport());
   document.getElementById("overviewBack").addEventListener("click", clearSelectedRecord);
   document.addEventListener("click", (event) => {
@@ -1689,13 +1779,13 @@ async function init() {
       document.getElementById("countrySelect").value = state.country;
       clearSelectedRecord();
       applyState();
-      document.querySelector(".records-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }
 
     const overviewTarget = event.target.closest("[data-overview-record]");
     if (overviewTarget) {
       selectRecord(overviewTarget.getAttribute("data-overview-record"), true);
+      focusPlaceOnMap(overviewTarget.getAttribute("data-overview-record"));
       return;
     }
 
@@ -1709,7 +1799,7 @@ async function init() {
     }
 
     if (event.target.closest("[data-close-report]")) {
-      document.getElementById("fullReport")?.remove();
+      closeReport();
       return;
     }
 
@@ -1759,6 +1849,7 @@ async function init() {
   if (requestedPlace && state.country !== "__all__" && recordByKey(`${state.country}::${requestedPlace}`)) {
     const key = `${state.country}::${requestedPlace}`;
     selectRecord(key, true);
+    focusPlaceOnMap(key);
     renderFullReport(recordByKey(key));
   }
 }
@@ -1766,7 +1857,7 @@ async function init() {
 init().catch((error) => {
   console.error("Failed to initialize hotspot map:", error);
   document.getElementById("recordGrid").innerHTML = `
-    <article class="record-card">
+    <article class="ma-empty">
       <h3>Map data could not be loaded</h3>
       <p>Please confirm the generated hotspot data file is available in the data folder.</p>
     </article>
